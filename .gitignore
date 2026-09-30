@@ -1,0 +1,23 @@
+# Ambiente Virtuale Python
+.venv/
+env/
+ENV/
+
+# Cache di Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Immagini di test generate durante lo sviluppo
+test_segmentation_output.png
+test_pipeline_output.png
+*.jpg
+*.png
+
+# Pesi dei modelli pesanti o LoRA scaricati localmente (opzionale)
+loras/*.safetensors
+
+# Configurazione VS Code e ambiente locale
+.vscode/
+.DS_Store
+*.env
