@@ -31,6 +31,8 @@ class StyleTransferPipeline:
         # Move the pipeline to the specified device (GPU or CPU) in order to avoid memory issues
         if self.device == "cuda":
             self.pipe.enable_model_cpu_offload()
+        else:
+            self.pipe.to(self.device)
 
     def generate(
             self,
@@ -43,16 +45,24 @@ class StyleTransferPipeline:
             seed: int = 42
             
     ) -> Image.Image:
-        # we generate an image based on the prompt and the segmentation map
-        generator = torch.Generator(device=self.device).manual_seed(seed) if seed is not None else None
+        """Generate from text + segmentation; image supplies the output size.
+
+        This is ControlNet text-to-image, not img2img: the source photograph
+        is represented by control_image, not used as initial diffusion latents.
+        """
+        generator = torch.Generator(device="cpu").manual_seed(seed) if seed is not None else None
 
         orig_size = image.size
-        img_resized = image.resize((512, 512))
-        control_resized = control_image.resize((512, 512))
+        # Nearest-neighbor preserves class colors instead of blending labels.
+        control_resized = control_image.convert("RGB").resize(
+            (512, 512), resample=Image.Resampling.NEAREST
+        )
 
         output = self.pipe(
             prompt=prompt,
             image=control_resized,
+            height=512,
+            width=512,
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
             controlnet_conditioning_scale=controlnet_conditioning_scale,
@@ -60,7 +70,7 @@ class StyleTransferPipeline:
         ).images[0]
 
         # Resize the output image back to the original size
-        output_resized = output.resize(orig_size)
+        output_resized = output.resize(orig_size, resample=Image.Resampling.LANCZOS)
 
         return output_resized
 if __name__ == "__main__":
@@ -69,7 +79,7 @@ if __name__ == "__main__":
     from segmentation import SemanticSegmentor
 
     # 1. Percorso della foto di input sul tuo PC
-    image_path = "C:\\Users\\Ladybug\\Desktop\\paesaggio-1024x683.png" # <--- Sostituisci con il nome della tua foto
+    image_path = "test_images/paesaggio-1024x683.png" # <--- Sostituisci con il nome della tua foto
 
     if not os.path.exists(image_path):
         print(f"Errore: File '{image_path}' non trovato!")
@@ -80,19 +90,21 @@ if __name__ == "__main__":
         # Segmentiamo l'immagine
         segmentor = SemanticSegmentor()
         seg_map = segmentor.process(input_img)
+        seg_map.save("test_segmentation_output.png")
         
         print("2/3 Inizializzazione della Pipeline di Generazione...")
         pipeline = StyleTransferPipeline()
 
         print("3/3 Generazione dell'immagine in stile test...")
-        # Proviamo a generare uno stile urbano generico prima di caricare le LoRA
-        prompt = "a futuristic cyberpunk street scene with neon lights"
+        # Style-only baseline: do not describe or change the scene content.
+        prompt = "cyberpunk style"
         
         output_img = pipeline.generate(
             prompt=prompt,
             image=input_img,
-            controlnet_image=seg_map,
+            control_image=seg_map,
             num_inference_steps=20,
+            guidance_scale=7.5,
             controlnet_conditioning_scale=1.0,
             seed=42
         )
