@@ -1,85 +1,105 @@
+import os
 import torch 
 from PIL import Image
-from diffusers import StableDiffusionControlNetPipeline, ControlNetModel, UniPCMultistepScheduler
+from diffusers import (
+    StableDiffusionControlNetPipeline,
+    ControlNetModel,
+    UniPCMultistepScheduler,
+    AutoencoderKL,
+)
 
-# ControlNet model for conditional image generation
-# StableDiffusionControlNetPipeline is a pipeline that allos you to use ControlNet with Stable Diffusion for image generation tasks
-# UniPCMultistepScheduler is a scheduler that helps to control the diffusion process during image generation
+DEFAULT_NEGATIVE_PROMPT = (
+    "blurry, low quality, distorted, artifacts, flat colors, deformed, "
+    "oversaturated, noisy, watermark, signature, text, bad anatomy"
+)
+
+def compute_optimal_dimensions(width: int, height: int, max_dim: int = 512) -> tuple[int, int]:
+    """Calculate proportional dimensions aligned to multiples of 64 to preserve aspect ratio without distortion."""
+    scale = max_dim / max(width, height)
+    new_w = max(64, int((width * scale) // 64) * 64)
+    new_h = max(64, int((height * scale) // 64) * 64)
+    return new_w, new_h
 
 class StyleTransferPipeline:
-    def __init__(self, device="cuda" if torch.cuda.is_available() else "cpu"):
+    def __init__(self, device: str = "cuda" if torch.cuda.is_available() else "cpu"):
         self.device = device
+        dtype = torch.float16 if self.device == "cuda" else torch.float32
 
-        #download controlnet model for semantic segmentation
-        self.controlnet = ControlNetModel.from_pretrained(
-            "lllyasviel/sd-controlnet-seg", 
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
+        # 1. Enhanced VAE for sharper details and vibrant colors
+        self.vae = AutoencoderKL.from_pretrained(
+            "stabilityai/sd-vae-ft-mse",
+            torch_dtype=dtype
         )
 
+        # 2. ControlNet model for semantic segmentation conditioning
+        self.controlnet = ControlNetModel.from_pretrained(
+            "lllyasviel/sd-controlnet-seg", 
+            torch_dtype=dtype
+        )
 
-        # Initialize the Stable Diffusion ControlNet pipeline with the pre-trained model and the ControlNet model
+        # 3. Stable Diffusion ControlNet pipeline
         self.pipe = StableDiffusionControlNetPipeline.from_pretrained(
             "runwayml/stable-diffusion-v1-5", 
-            controlnet=self.controlnet, 
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            controlnet=self.controlnet,
+            vae=self.vae,
+            torch_dtype=dtype,
             safety_checker=None
         )
 
-        # Set the scheduler for the diffusion process to UniPCMultistepScheduler, which is a specific scheduler that helps control the diffusion process during image generation
+        # 4. UniPC scheduler for fast and stable multistep diffusion
         self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
 
-        # Move the pipeline to the specified device (GPU or CPU) in order to avoid memory issues
         if self.device == "cuda":
             self.pipe.enable_model_cpu_offload()
         else:
             self.pipe.to(self.device)
 
     def generate(
-            self,
-            prompt: str,
-            image: Image.Image,
-            control_image: Image.Image,
-            num_inference_steps: int = 20,
-            guidance_scale: float = 7.5,
-            controlnet_conditioning_scale: float = 1.0,
-            seed: int = 42
-            
+        self,
+        prompt: str,
+        image: Image.Image,
+        control_image: Image.Image,
+        negative_prompt: str = DEFAULT_NEGATIVE_PROMPT,
+        num_inference_steps: int = 25,
+        guidance_scale: float = 7.5,
+        controlnet_conditioning_scale: float = 1.0,
+        control_guidance_end: float = 0.85,
+        seed: int = 42
     ) -> Image.Image:
-        """Generate from text + segmentation; image supplies the output size.
-
-        This is ControlNet text-to-image, not img2img: the source photograph
-        is represented by control_image, not used as initial diffusion latents.
-        """
+        """Generate from text + segmentation in Text-to-Image mode with aspect-ratio preservation."""
         generator = torch.Generator(device="cpu").manual_seed(seed) if seed is not None else None
 
         orig_size = image.size
-        # Nearest-neighbor preserves class colors instead of blending labels.
+        # Compute optimal generation resolution matching input aspect ratio
+        gen_w, gen_h = compute_optimal_dimensions(orig_size[0], orig_size[1], max_dim=512)
+
+        # Nearest-neighbor preserves discrete class IDs/colors without interpolation artifacts
         control_resized = control_image.convert("RGB").resize(
-            (512, 512), resample=Image.Resampling.NEAREST
+            (gen_w, gen_h), resample=Image.Resampling.NEAREST
         )
 
         output = self.pipe(
             prompt=prompt,
+            negative_prompt=negative_prompt,
             image=control_resized,
-            height=512,
-            width=512,
+            height=gen_h,
+            width=gen_w,
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
             controlnet_conditioning_scale=controlnet_conditioning_scale,
+            control_guidance_start=0.0,
+            control_guidance_end=control_guidance_end,
             generator=generator
         ).images[0]
 
-        # Resize the output image back to the original size
-        output_resized = output.resize(orig_size, resample=Image.Resampling.LANCZOS)
+        # Resize output back to original input resolution
+        return output.resize(orig_size, resample=Image.Resampling.LANCZOS)
 
-        return output_resized
 if __name__ == "__main__":
-    import os
-    from PIL import Image
     from segmentation import SemanticSegmentor
 
-    # 1. Percorso della foto di input sul tuo PC
-    image_path = "test_images/paesaggio-1024x683.png" # <--- Sostituisci con il nome della tua foto
+    # 1. Percorso della foto di input
+    image_path = "test_images/paesaggio-1024x683.png"
 
     if not os.path.exists(image_path):
         print(f"Errore: File '{image_path}' non trovato!")
@@ -96,16 +116,16 @@ if __name__ == "__main__":
         pipeline = StyleTransferPipeline()
 
         print("3/3 Generazione dell'immagine in stile test...")
-        # Style-only baseline: do not describe or change the scene content.
         prompt = "cyberpunk style"
         
         output_img = pipeline.generate(
             prompt=prompt,
             image=input_img,
             control_image=seg_map,
-            num_inference_steps=20,
+            num_inference_steps=25,
             guidance_scale=7.5,
             controlnet_conditioning_scale=1.0,
+            control_guidance_end=0.85,
             seed=42
         )
 

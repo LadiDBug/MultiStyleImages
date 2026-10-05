@@ -21,3 +21,4 @@ loras/*.safetensors
 .vscode/
 .DS_Store
 *.env
+test_images/**
