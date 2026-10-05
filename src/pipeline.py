@@ -1,6 +1,16 @@
-import torch 
+import gc
+import torch
 from PIL import Image
 from diffusers import StableDiffusionControlNetPipeline, ControlNetModel, UniPCMultistepScheduler
+
+if __package__:
+    from .prompt_builder import PromptBuilder, STYLE_PROMPTS, normalize_style
+    from .segmentation import SemanticSegmentor, ADE20K_PALETTE
+else:
+    from prompt_builder import PromptBuilder, STYLE_PROMPTS, normalize_style
+    from segmentation import SemanticSegmentor, ADE20K_PALETTE
+
+SD_MODEL_ID = "runwayml/stable-diffusion-v1-5"
 
 # ControlNet model for conditional image generation
 # StableDiffusionControlNetPipeline is a pipeline that allos you to use ControlNet with Stable Diffusion for image generation tasks
@@ -19,7 +29,7 @@ class StyleTransferPipeline:
 
         # Initialize the Stable Diffusion ControlNet pipeline with the pre-trained model and the ControlNet model
         self.pipe = StableDiffusionControlNetPipeline.from_pretrained(
-            "runwayml/stable-diffusion-v1-5", 
+            SD_MODEL_ID,
             controlnet=self.controlnet, 
             torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
             safety_checker=None
@@ -73,32 +83,58 @@ class StyleTransferPipeline:
         output_resized = output.resize(orig_size, resample=Image.Resampling.LANCZOS)
 
         return output_resized
-if __name__ == "__main__":
+def main(
+    image_path="test_images/paesaggio-1024x683.png",
+    style="Cyberpunk",
+    automatic_prompt=True,
+    min_area_ratio=0.01,
+    max_classes=8,
+):
+    """Run the example; disable automatic_prompt for the style-only baseline."""
     import os
-    from PIL import Image
-    from segmentation import SemanticSegmentor
 
-    # 1. Percorso della foto di input sul tuo PC
-    image_path = "test_images/paesaggio-1024x683.png" # <--- Sostituisci con il nome della tua foto
-
+    style_key = normalize_style(style)
     if not os.path.exists(image_path):
         print(f"Errore: File '{image_path}' non trovato!")
     else:
         print("1/3 Caricamento foto e calcolo mappa semantica...")
         input_img = Image.open(image_path).convert("RGB")
         
-        # Segmentiamo l'immagine
+        # One inference supplies both semantic text and the RGB control map.
         segmentor = SemanticSegmentor()
-        seg_map = segmentor.process(input_img)
+        labels = segmentor.process_labels(input_img)
+        seg_map = Image.fromarray(ADE20K_PALETTE[labels])
         seg_map.save("test_segmentation_output.png")
+
+        builder = PromptBuilder(
+            segmentor.model.config.id2label,
+            min_area_ratio=min_area_ratio,
+            max_classes=max_classes,
+        )
+        prompt = (
+            builder.build(labels, style=style_key)
+            if automatic_prompt else STYLE_PROMPTS[style_key]
+        )
+        print("Classi rilevate (prima del filtraggio del prompt):")
+        for feature in builder.extract_features(labels):
+            print(f"  {feature.name}: {feature.area_ratio:.1%}")
+
+        # Free segmentation weights before loading Stable Diffusion.
+        del segmentor
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        output_stem = "test_pipeline_auto" if automatic_prompt else "test_pipeline_output"
+        print(f"Prompt: {prompt}")
+
+        # Separate filenames keep automatic and baseline results comparable.
+        with open(f"{output_stem}_prompt.txt", "w", encoding="utf-8") as prompt_file:
+            prompt_file.write(prompt + "\n")
         
         print("2/3 Inizializzazione della Pipeline di Generazione...")
         pipeline = StyleTransferPipeline()
 
         print("3/3 Generazione dell'immagine in stile test...")
-        # Style-only baseline: do not describe or change the scene content.
-        prompt = "cyberpunk style"
-        
         output_img = pipeline.generate(
             prompt=prompt,
             image=input_img,
@@ -109,6 +145,14 @@ if __name__ == "__main__":
             seed=42
         )
 
-        output_path = "test_pipeline_output.png"
+        output_path = f"{output_stem}.png"
         output_img.save(output_path)
         print(f"Fatto! L'immagine generata è stata salvata come '{output_path}'")
+
+
+if __name__ == "__main__":
+    main(
+        image_path="test_images/paesaggio-1024x683.png",
+        style="Cyberpunk",
+        automatic_prompt=True,  # False: baseline with only the style prompt.
+    )

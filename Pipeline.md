@@ -2,6 +2,25 @@
 
 ## 1. Idea e obiettivo del progetto
 
+**Configurazione attuale:** UPerNet → classi ADE20K + mappa RGB → prompt builder
+deterministico → SD + ControlNet. Il generatore riceve il prompt testuale e
+l'immagine segmentata. I percorsi con modello linguistico e builder ibrido sono
+stati rimossi, insieme ai relativi test e all'input strutturato dedicato.
+
+```python
+from src.pipeline import main
+
+main(
+    image_path="test_images/paesaggio-1024x683.png",
+    style="Cyberpunk",
+    automatic_prompt=True,
+)
+```
+
+`automatic_prompt=False` seleziona la baseline con solo stile. Non è più previsto
+il parametro `prompt_backend`. Vengono salvati mappa RGB, prompt `.txt` e immagine
+generata; non vengono più prodotti file JSON per scene o risposte linguistiche.
+
 Il progetto vuole trasformare una fotografia di un paesaggio in uno stile visivo selezionato, ottenendo un output il più fedele possibile al contenuto e alla composizione dell'input. L'utente deve compiere soltanto due azioni: **caricare una foto e scegliere uno stile**. La descrizione del contenuto viene ricavata automaticamente dal sistema e usata per costruire il prompt del generatore.
 
 Gli stili iniziali da sperimentare sono Cyberpunk, GTA V, Mario Kart e Studio Ghibli. Il risultato atteso è una reinterpretazione della scena originale: per esempio, un paesaggio con montagne, vegetazione e acqua deve conservare questi elementi anche quando assume un'estetica Cyberpunk.
@@ -87,12 +106,6 @@ Dalle regioni si possono ricavare area, bounding box e posizione nell'immagine. 
 
 La posizione bidimensionale non basta a stabilire profondità o relazioni complesse: “in basso” non equivale automaticamente a “in primo piano”. Questa variante va confrontata con la semplice lista delle classi per capire se aggiunge informazioni utili oppure errori.
 
-### Estensione possibile: captioning o modello visivo-linguistico
-
-Se le classi ADE20K risultano insufficienti, si potrà aggiungere un captioner o un modello visivo-linguistico che analizzi la fotografia e proponga una descrizione più ricca. La segmentation map continuerà a essere quella del percorso esistente.
-
-Questa opzione richiede di misurare qualità della descrizione, contenuti inventati, costo e latenza. È un'estensione da confrontare con il prototipo basato sulle classi, non una componente già implementata.
-
 ## 5. Costruzione del prompt e scelta dello stile
 
 Il prompt viene composto internamente secondo lo schema:
@@ -119,9 +132,9 @@ L'interfaccia prevista mostra foto, selettore dello stile e comando di generazio
 | Parte | Stato attuale |
 | --- | --- |
 | `src/segmentation.py` | UPerNet `openmmlab/upernet-convnext-small`; ID ADE20K 0–149 tramite `process_labels()`; mappa RGB tramite `process()`; palette ufficiale e modalità di valutazione |
-| `src/pipeline.py` | SD 1.5 + `lllyasviel/sd-controlnet-seg`, scheduler UniPC, mappa ridimensionata con NEAREST, test con prompt `cyberpunk style` |
-| Estrazione di nomi, aree e relazioni | Da implementare a partire dalla mappa degli ID |
-| Costruzione automatica del prompt | Da implementare e confrontare con la baseline |
+| `src/pipeline.py` | SD 1.5 + `lllyasviel/sd-controlnet-seg`, scheduler UniPC, mappa ridimensionata con NEAREST, prompt automatico o baseline di solo stile |
+| `src/prompt_builder.py` | Estrazione di nomi e aree, selezione delle classi e costruzione deterministica del prompt |
+| Relazioni spaziali | Non incluse nel builder attuale |
 | Interfaccia foto + stile | Da implementare |
 | Valutazione sistematica e training | Da progettare ed eseguire |
 

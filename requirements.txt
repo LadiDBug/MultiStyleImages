@@ -1,4 +1,6 @@
 diffusers
 numpy
-PIL
+Pillow
 transformers
+torch
+accelerate
