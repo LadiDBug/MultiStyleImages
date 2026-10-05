@@ -51,14 +51,18 @@ ADE20K_PALETTE = np.array([
 ], dtype=np.uint8)
 
 class SemanticSegmentor:
-    def __init__(self, device="cuda" if torch.cuda.is_available() else "cpu"):
+    def __init__(
+        self,
+        model_name: str = "openmmlab/upernet-convnext-base",
+        device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    ):
         self.device = device
-        print(f"Using device: {self.device}")
+        print(f"Using device: {self.device} with model: {model_name}")
 
-        # AutoImagePRocessor download and prepare the model for semantic segmentation
-        self.processor = AutoImageProcessor.from_pretrained("openmmlab/upernet-convnext-small")
+        # AutoImageProcessor downloads and prepares the model for semantic segmentation
+        self.processor = AutoImageProcessor.from_pretrained(model_name)
         # Load the pre-trained UperNet model for semantic segmentation
-        self.model = UperNetForSemanticSegmentation.from_pretrained("openmmlab/upernet-convnext-small").to(self.device).eval()
+        self.model = UperNetForSemanticSegmentation.from_pretrained(model_name).to(self.device).eval()
 
     def process(self, image: Image.Image) -> Image.Image:
         """Return the RGB ADE20K conditioning map expected by ControlNet."""
@@ -66,23 +70,31 @@ class SemanticSegmentor:
         return Image.fromarray(ADE20K_PALETTE[pred_seg])
 
     def process_labels(self, image: Image.Image) -> np.ndarray:
-        """Return original ADE20K IDs (H, W), useful for semantic evaluation."""
-        inputs = self.processor(images=image.convert("RGB"), return_tensors="pt").to(self.device)
+        """Return original ADE20K IDs (H, W), with pre-upscaling for low-resolution inputs."""
+        w, h = image.size
+
+        # Pre-upscale small images (<512px) to 512px with Lanczos so ConvNeXt operates at optimal feature scale
+        if max(w, h) < 512:
+            scale = 512 / max(w, h)
+            target_size = (max(64, int(w * scale)), max(64, int(h * scale)))
+            proc_img = image.convert("RGB").resize(target_size, resample=Image.Resampling.LANCZOS)
+        else:
+            proc_img = image.convert("RGB")
+
+        inputs = self.processor(images=proc_img, return_tensors="pt").to(self.device)
 
         with torch.no_grad():
             outputs = self.model(**inputs)
             
         logits = outputs.logits
 
-        # Upsample the logits to match the original image size
+        # Upsample the logits to match the processed image size
         upsampled_logits = torch.nn.functional.interpolate(
             logits, 
-            size=image.size[::-1],
+            size=proc_img.size[::-1],
             mode="bilinear",
             align_corners=False
         )
-
-
 
         return upsampled_logits.argmax(dim=1)[0].cpu().numpy().astype(np.uint8)
 
