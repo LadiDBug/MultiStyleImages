@@ -92,8 +92,11 @@ class StyleTransferPipeline:
             generator=generator
         ).images[0]
 
-        # Resize output back to original input resolution
-        return output.resize(orig_size, resample=Image.Resampling.LANCZOS)
+        # Preserve native high quality (512px) if the input image was small;
+        # only resize back if the input image was larger than the generated resolution.
+        if orig_size[0] > gen_w or orig_size[1] > gen_h:
+            return output.resize(orig_size, resample=Image.Resampling.LANCZOS)
+        return output
 
 if __name__ == "__main__":
     from segmentation import SemanticSegmentor
