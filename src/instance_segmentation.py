@@ -185,12 +185,12 @@ class InstanceSegmentor:
 
         # 3. I contorni tra alberi vengono colorati con il colore ADE20K del terreno/suolo o linea scura
         # In questo modo ControlNet vede una sequenza di fusti d'albero verdi separati da solchi naturali
-        ground_color = self.palette[13]  # ADE20K Class 13: Earth / Ground [120, 120, 70]
-        tree_mask = (semantic_labels == 4) | (semantic_labels == 9) | (semantic_labels == 17)
-        tree_boundaries = (instance_boundaries == 255) & tree_mask
+        #ground_color = self.palette[13]  # ADE20K Class 13: Earth / Ground [120, 120, 70]
+        #tree_mask = (semantic_labels == 4) | (semantic_labels == 9) | (semantic_labels == 17)
+        #tree_boundaries = (instance_boundaries == 255) & tree_mask
 
         # Applica il colore di demarcazione
-        seg_color[tree_boundaries] = ground_color
+        #seg_color[tree_boundaries] = ground_color
 
         return Image.fromarray(seg_color.astype(np.uint8))
 
@@ -229,5 +229,20 @@ if __name__ == "__main__":
     instance_img.save(str(out_p))
 
     _, _, meta = segmentor.process_instances(input_p, preprocess=args.preprocess)
-    print(f"✅ Trovate {len(meta)} istanze d'albero/oggetti distinte!")
-    print(f"Mappa ADE20K salvata in: {out_p}")
+    print(f"\n========================================================")
+    print(f"📊 RIEPILOGO ISTANZE TROVATE: {len(meta)} ISTANZE TOTALI")
+    print(f"========================================================")
+    print(f"{'ID':<4} | {'CLASSE':<12} | {'COLORE RGB (ADE20K)':<20} | {'AREA (px)':<10} | {'BOUNDING BOX [xmin, ymin, xmax, ymax]'}")
+    print(f"-" * 80)
+    
+    for inst_id, data in meta.items():
+        class_id = data["class_id"]
+        class_name = data["class_name"]
+        color = ADE20K_PALETTE[class_id].tolist() if class_id < len(ADE20K_PALETTE) else [0, 0, 0]
+        color_str = f"RGB{color}"
+        area = data["area_pixels"]
+        bbox = str(data["bbox"])
+        print(f"{inst_id:<4} | {class_name:<12} | {color_str:<20} | {area:<10} | {bbox}")
+
+    print(f"========================================================")
+    print(f"✅ Mappa ADE20K salvata in: {out_p}\n")
