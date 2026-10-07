@@ -1,6 +1,7 @@
 # This file is used to segment the original image into a segmentation map
 # this part is important beacuse we want to modify the original image
 
+from pathlib import Path
 import torch 
 from transformers import AutoImageProcessor, UperNetForSemanticSegmentation
 from PIL import Image
@@ -102,26 +103,44 @@ class SemanticSegmentor:
         return ADE20K_PALETTE.tolist()
 
 if __name__ == "__main__":
+    import argparse
+    import sys
     from PIL import Image
-    import os
 
-    print("Inizializzazione del segmentatore...")
+    parser = argparse.ArgumentParser(description="Genera la mappa di segmentazione ADE20K per una singola immagine.")
+    parser.add_argument("input_path", nargs="?", default="test_images/paesaggio-1024x683.png",
+                        help="Percorso dell'immagine di input (default: test_images/paesaggio-1024x683.png).")
+    parser.add_argument("-o", "--output_path", type=str, default=None,
+                        help="Percorso del file in cui salvare la mappa di segmentazione.")
+    parser.add_argument("--preprocess", action="store_true",
+                        help="Applica prima il preprocessing per migliorare l'immagine prima di segmentarla.")
+
+    args = parser.parse_args()
+    input_p = Path(args.input_path) if "Path" in globals() else sys.modules["pathlib"].Path(args.input_path)
+
+    if not input_p.exists():
+        print(f"Errore: Impossibile trovare l'immagine al percorso '{input_p}'!")
+        sys.exit(1)
+
+    out_p = Path(args.output_path) if args.output_path else input_p.parent / f"{input_p.stem}_seg_map.png"
+
+    print(f"Caricamento dell'immagine: {input_p}...")
+    input_img = Image.open(str(input_p)).convert("RGB")
+
+    if args.preprocess:
+        try:
+            from img_preprocessing import preprocess_image
+        except ImportError:
+            from src.img_preprocessing import preprocess_image
+        print("Applicazione del preprocessing anti-rumore / bilanciamento colore...")
+        input_img = preprocess_image(input_img, return_pil=True)
+
+    print("Inizializzazione del segmentatore UperNet...")
     segmentor = SemanticSegmentor()
 
-    # 1. Inserisci qui il percorso della tua foto sul PC
-    # Esempio su Windows: "C:/Utenti/Nome/Desktop/mia_foto.jpg" oppure "mia_foto.jpg" se è nella stessa cartella
-    image_path = "test_images/paesaggio-1024x683.png"
+    print("Elaborazione della mappa semantica...")
+    output_seg = segmentor.process(input_img)
 
-    if not os.path.exists(image_path):
-        print(f"Errore: Impossibile trovare l'immagine al percorso '{image_path}'!")
-    else:
-        print(f"Caricamento dell'immagine: {image_path}...")
-        input_img = Image.open(image_path).convert("RGB")
+    output_seg.save(str(out_p))
+    print(f"Fatto! La mappa semantica è stata salvata in: '{out_p}'")
 
-        print("Elaborazione della mappa semantica...")
-        output_seg = segmentor.process(input_img)
-
-        # Salviamo la mappa semantica per verificarla
-        output_filename = "test_segmentation_output.png"
-        output_seg.save(output_filename)
-        print(f"Fatto! La mappa semantica è stata salvata come '{output_filename}'")
