@@ -1,12 +1,16 @@
 import gc
+import json
+from dataclasses import asdict
 import torch
 from PIL import Image
 from diffusers import StableDiffusionControlNetPipeline, ControlNetModel, UniPCMultistepScheduler
 
 if __package__:
+    from .class_style_describer import ClassStyleDescriber, compose_prompt
     from .prompt_builder import PromptBuilder, STYLE_PROMPTS, normalize_style
     from .segmentation import SemanticSegmentor, ADE20K_PALETTE
 else:
+    from class_style_describer import ClassStyleDescriber, compose_prompt
     from prompt_builder import PromptBuilder, STYLE_PROMPTS, normalize_style
     from segmentation import SemanticSegmentor, ADE20K_PALETTE
 
@@ -89,11 +93,14 @@ def main(
     automatic_prompt=True,
     min_area_ratio=0.01,
     max_classes=8,
+    prompt_backend="llm",
 ):
-    """Run the example; disable automatic_prompt for the style-only baseline."""
+    """Use llm/template prompts, or automatic_prompt=False for style only."""
     import os
 
     style_key = normalize_style(style)
+    if prompt_backend not in {"llm", "template"}:
+        raise ValueError("prompt_backend must be llm or template.")
     if not os.path.exists(image_path):
         print(f"Errore: File '{image_path}' non trovato!")
     else:
@@ -119,12 +126,35 @@ def main(
         for feature in builder.extract_features(labels):
             print(f"  {feature.name}: {feature.area_ratio:.1%}")
 
-        # Free segmentation weights before loading Stable Diffusion.
+        features = builder.select_features(labels)
+
+        # Free segmentation weights before loading Qwen or Stable Diffusion.
         del segmentor
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         output_stem = "test_pipeline_auto" if automatic_prompt else "test_pipeline_output"
+        if automatic_prompt and prompt_backend == "llm":
+            output_stem = "test_pipeline_llm"
+            print("Descrizione stilistica delle classi con Qwen2.5-1.5B-Instruct...")
+            describer = ClassStyleDescriber()
+            try:
+                description = describer.describe(features, style_key)
+            finally:
+                describer.close()
+            # Only the CLIP tokenizer is loaded here, not SD weights.
+            from transformers import AutoTokenizer
+            sd_tokenizer = AutoTokenizer.from_pretrained(SD_MODEL_ID, subfolder="tokenizer")
+            prompt, composition = compose_prompt(description, features, style_key, sd_tokenizer)
+            record = {
+                "model": describer.model_id, "style": style_key,
+                "selected_classes": [asdict(feature) for feature in features],
+                "description": description, "composition": composition, "prompt": prompt,
+            }
+            with open(f"{output_stem}_style.json", "w", encoding="utf-8") as handle:
+                json.dump(record, handle, ensure_ascii=False, indent=2)
+            if composition["shortened"]:
+                print("Descrizioni accorciate per il limite CLIP; dettagli nel file _style.json.")
         print(f"Prompt: {prompt}")
 
         # Separate filenames keep automatic and baseline results comparable.
@@ -155,4 +185,5 @@ if __name__ == "__main__":
         image_path="test_images/paesaggio-1024x683.png",
         style="Cyberpunk",
         automatic_prompt=True,  # False: baseline with only the style prompt.
+        prompt_backend="llm",  # "template": deterministic class + style prompt.
     )

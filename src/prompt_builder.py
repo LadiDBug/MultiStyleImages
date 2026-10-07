@@ -116,6 +116,18 @@ class PromptBuilder:
         ]
         return sorted(features, key=lambda feature: (-feature.pixel_count, feature.class_id))
 
+    def select_features(self, labels: np.ndarray) -> list[SemanticFeature]:
+        """Return the same ordered, filtered classes used by every backend."""
+        selected = []
+        names = set()
+        for feature in self.extract_features(labels):
+            if feature.area_ratio >= self.min_area_ratio and feature.name not in names:
+                selected.append(feature)
+                names.add(feature.name)
+                if len(selected) == self.max_classes:
+                    break
+        return selected
+
     def build(self, labels: np.ndarray, style: str) -> str:
         """Return content + style text, preserving the model's class meanings.
 
@@ -123,12 +135,7 @@ class PromptBuilder:
         claim about identity or number. Style cannot introduce scene objects.
         """
         style_key = normalize_style(style)
-        names = []
-        for feature in self.extract_features(labels):
-            if feature.area_ratio >= self.min_area_ratio and feature.name not in names:
-                names.append(feature.name)
-                if len(names) == self.max_classes:
-                    break
+        names = [feature.name for feature in self.select_features(labels)]
         style_prompt = STYLE_PROMPTS[style_key]
         if not names:
             return style_prompt

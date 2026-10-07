@@ -2,10 +2,9 @@
 
 ## 1. Idea e obiettivo del progetto
 
-**Configurazione attuale:** UPerNet → classi ADE20K + mappa RGB → prompt builder
-deterministico → SD + ControlNet. Il generatore riceve il prompt testuale e
-l'immagine segmentata. I percorsi con modello linguistico e builder ibrido sono
-stati rimossi, insieme ai relativi test e all'input strutturato dedicato.
+**Configurazione attuale:** UPerNet → classi ADE20K + mappa RGB → Qwen2.5-1.5B-Instruct
+(descrizioni stilistiche per classe) → composizione deterministica del prompt → SD + ControlNet.
+La mappa di segmentazione rimane identica per tutti i backend.
 
 ```python
 from src.pipeline import main
@@ -14,12 +13,60 @@ main(
     image_path="test_images/paesaggio-1024x683.png",
     style="Cyberpunk",
     automatic_prompt=True,
+    prompt_backend="llm",
 )
 ```
 
-`automatic_prompt=False` seleziona la baseline con solo stile. Non è più previsto
-il parametro `prompt_backend`. Vengono salvati mappa RGB, prompt `.txt` e immagine
-generata; non vengono più prodotti file JSON per scene o risposte linguistiche.
+Installare `pip install -r requirements.txt` anche su Kaggle; riavviare il kernel
+se Transformers era già importato prima dell'aggiornamento. Il primo avvio scarica
+Qwen (circa 3,1 GB di pesi a 16 bit, oltre alla memoria di esecuzione).
+I modelli vengono caricati in sequenza: UPerNet viene liberato prima di Qwen,
+Qwen prima di SD. Qwen usa FP16 su CUDA e FP32 su CPU.
+
+`PromptBuilder.select_features()` espone le classi filtrate, ordinate per area,
+senza analizzare il prompt testuale. Una richiesta a Qwen produce:
+
+```json
+{
+  "global": "cinematic neon lighting and violet haze",
+  "classes": {
+    "water": "cyan and magenta reflections",
+    "tree": "dark foliage with neon rimlight"
+  }
+}
+```
+
+`src/class_style_describer.py` usa LM Format Enforcer con schema dinamico: chiavi
+esatte, campi obbligatori, nessun campo extra. Il risultato viene anche validato
+in Python. I vincoli strutturali non garantiscono correttezza semantica: descrizioni
+incoerenti o oggetti inventati devono essere controllati negli esperimenti.
+Un risultato incompleto produce un errore esplicito, senza sostituire di nascosto
+il backend. Senza classi selezionate si usa solo lo stile.
+
+Ogni richiesta include una direzione artistica specifica (`STYLE_DIRECTIONS`),
+senza esempi appartenenti agli altri stili. GTA V indica qui la resa 3D del gioco,
+non le illustrazioni delle schermate di caricamento. Qwen adatta questa direzione
+alle classi selezionate; le descrizioni per classe non sono precompilate.
+
+Il codice compone nome dello stile, stile globale e ciascuna classe con la sua
+descrizione. Misura il prompt con il tokenizer di SD; se supera il limite,
+accorcia prima le descrizioni delle classi meno estese, poi quella globale.
+Tutti i nomi delle classi selezionate vengono mantenuti; le descrizioni secondarie
+possono essere eliminate. Questa euristica può impoverire lo stile e va valutata.
+
+Output LLM: `test_pipeline_llm.png`, `test_pipeline_llm_prompt.txt` e
+`test_pipeline_llm_style.json` (classi selezionate, risposta originale,
+descrizioni effettivamente usate, numero di token e prompt finale).
+`test_segmentation_output.png` contiene la mappa RGB.
+
+Per confronti con stessa foto, stile e seed:
+- `automatic_prompt=True, prompt_backend="llm"`: descrizioni per classe.
+- `automatic_prompt=True, prompt_backend="template"`: builder deterministico,
+  output `test_pipeline_auto*`.
+- `automatic_prompt=False`: baseline solo stile, output `test_pipeline_output*`.
+
+L'inferenza completa e la qualità visiva sono da verificare su Kaggle. Non è
+previsto fine-tuning in questa fase; i risultati guideranno lo studio delle LoRA.
 
 Il progetto vuole trasformare una fotografia di un paesaggio in uno stile visivo selezionato, ottenendo un output il più fedele possibile al contenuto e alla composizione dell'input. L'utente deve compiere soltanto due azioni: **caricare una foto e scegliere uno stile**. La descrizione del contenuto viene ricavata automaticamente dal sistema e usata per costruire il prompt del generatore.
 
@@ -134,6 +181,7 @@ L'interfaccia prevista mostra foto, selettore dello stile e comando di generazio
 | `src/segmentation.py` | UPerNet `openmmlab/upernet-convnext-small`; ID ADE20K 0–149 tramite `process_labels()`; mappa RGB tramite `process()`; palette ufficiale e modalità di valutazione |
 | `src/pipeline.py` | SD 1.5 + `lllyasviel/sd-controlnet-seg`, scheduler UniPC, mappa ridimensionata con NEAREST, prompt automatico o baseline di solo stile |
 | `src/prompt_builder.py` | Estrazione di nomi e aree, selezione delle classi e costruzione deterministica del prompt |
+| `src/class_style_describer.py` | Qwen per descrizioni stilistiche in JSON vincolato; composizione entro il limite CLIP; inferenza reale da verificare su Kaggle |
 | Relazioni spaziali | Non incluse nel builder attuale |
 | Interfaccia foto + stile | Da implementare |
 | Valutazione sistematica e training | Da progettare ed eseguire |
