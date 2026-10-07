@@ -32,6 +32,7 @@ def run_baseline_benchmark(
     guidance_scale: float = 7.5,
     controlnet_conditioning_scale: float = 1.0,
     control_guidance_end: float = 0.85,
+    apply_preprocessing: bool = False,
     save_segmentation_maps: bool = True,
     device: str = None
 ):
@@ -42,12 +43,20 @@ def run_baseline_benchmark(
     if not input_path.exists():
         raise FileNotFoundError(f"Input directory not found: {input_path}")
 
-    # Gather all valid images
+    # Gather valid images (supports both single file and directory)
     valid_exts = {".jpg", ".jpeg", ".png", ".webp"}
-    image_files = sorted([
-        f for f in input_path.iterdir() 
-        if f.is_file() and f.suffix.lower() in valid_exts
-    ])
+    if input_path.is_file():
+        if input_path.suffix.lower() in valid_exts:
+            image_files = [input_path]
+        else:
+            raise ValueError(f"File extension not supported: {input_path}")
+    elif input_path.is_dir():
+        image_files = sorted([
+            f for f in input_path.iterdir() 
+            if f.is_file() and f.suffix.lower() in valid_exts
+        ])
+    else:
+        raise ValueError(f"Input path is neither a file nor a directory: {input_path}")
 
     if not image_files:
         raise ValueError(f"No valid images found in {input_path}")
@@ -76,6 +85,13 @@ def run_baseline_benchmark(
     pipeline_kwargs = {"device": device} if device else {}
     pipeline = StyleTransferPipeline(**pipeline_kwargs)
 
+    if apply_preprocessing:
+        try:
+            from img_preprocessing import preprocess_image
+        except ImportError:
+            from src.img_preprocessing import preprocess_image
+        print("Preprocessing module enabled for input images.")
+
     print("[3/3] Running benchmark across all images and styles...\n")
     metadata_log = {
         "benchmark_type": "baseline_style_only",
@@ -94,6 +110,9 @@ def run_baseline_benchmark(
     for img_file in tqdm(image_files, desc="Processing Images"):
         img_name = img_file.stem
         input_img = Image.open(img_file).convert("RGB")
+
+        if apply_preprocessing:
+            input_img = preprocess_image(input_img, return_pil=True)
         
         t0 = time.time()
         # 1. Compute segmentation map once per image
@@ -153,8 +172,9 @@ def run_baseline_benchmark(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Baseline Style Transfer on Landscape Dataset")
-    parser.add_argument("--input_dir", type=str, default="test_images", help="Path to input images directory")
+    parser.add_argument("--input_dir", type=str, default="test_images", help="Path to input images directory or single image file")
     parser.add_argument("--output_dir", type=str, default="results/baseline", help="Directory to save generated images")
+    parser.add_argument("--preprocess", action="store_true", help="Apply preprocessing to enhance input images before segmentation")
     parser.add_argument("--num_samples", type=int, default=None, help="Max number of images to process (e.g. 10 or 100)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for diffusion reproducibility")
     parser.add_argument("--steps", type=int, default=25, help="Number of inference steps")
@@ -173,5 +193,6 @@ if __name__ == "__main__":
         num_inference_steps=args.steps,
         guidance_scale=args.guidance_scale,
         controlnet_conditioning_scale=args.control_scale,
-        control_guidance_end=args.control_end
+        control_guidance_end=args.control_end,
+        apply_preprocessing=args.preprocess
     )
