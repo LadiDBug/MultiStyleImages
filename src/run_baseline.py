@@ -12,7 +12,11 @@ except ImportError:
         print(f"--- {desc} ---")
         return iterable
 
-from segmentation import SemanticSegmentor
+try:
+    from segmentation import SemanticSegmentor
+except ImportError:
+    from src.segmentation import SemanticSegmentor
+
 try:
     from instance_segmentation import InstanceSegmentor
 except ImportError:
