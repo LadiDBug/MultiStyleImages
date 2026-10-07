@@ -129,13 +129,13 @@ def run_baseline_benchmark(
         t0 = time.time()
         # 1. Compute segmentation map once per image
         if seg_type.lower() == "instance":
-            seg_map = segmentor.process(input_img, preprocess=False if apply_preprocessing else True)
+            seg_map = segmentor.process(input_img, preprocess=apply_preprocessing)
         else:
             seg_map = segmentor.process(input_img)
         t_seg = time.time() - t0
 
         if save_segmentation_maps:
-            seg_save_path = output_path / "segmentation_maps" / f"{img_name}_seg.png"
+            seg_save_path = output_path / "segmentation_maps" / f"{img_name}_{seg_type}_seg.png"
             seg_map.save(seg_save_path)
 
         item_log = {
