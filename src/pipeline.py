@@ -8,9 +8,14 @@ from diffusers import (
     AutoencoderKL,
 )
 
+#DEFAULT_NEGATIVE_PROMPT = (
+#    "blurry, low quality, distorted, artifacts, flat colors, deformed, "
+#    "oversaturated, noisy, watermark, signature, text, bad anatomy"
+#)
+
 DEFAULT_NEGATIVE_PROMPT = (
-    "blurry, low quality, distorted, artifacts, flat colors, deformed, "
-    "oversaturated, noisy, watermark, signature, text, bad anatomy"
+    "blurry, distorted, deformed"
+    "watermark, signature, text, bad anatomy"
 )
 
 def compute_optimal_dimensions(width: int, height: int, max_dim: int = 512) -> tuple[int, int]:
@@ -24,7 +29,8 @@ class StyleTransferPipeline:
     def __init__(self, device: str = "cuda" if torch.cuda.is_available() else "cpu"):
         self.device = device
         dtype = torch.float16 if self.device == "cuda" else torch.float32
-
+        #MIO PC
+        #dtype = torch.float32
         # 1. Enhanced VAE for sharper details and vibrant colors
         self.vae = AutoencoderKL.from_pretrained(
             "stabilityai/sd-vae-ft-mse",
