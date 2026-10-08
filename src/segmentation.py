@@ -143,4 +143,3 @@ if __name__ == "__main__":
 
     output_seg.save(str(out_p))
     print(f"Fatto! La mappa semantica è stata salvata in: '{out_p}'")
-
