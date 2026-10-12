@@ -14,6 +14,7 @@ except ImportError:
 
 from segmentation import SemanticSegmentor
 from pipeline import StyleTransferPipeline
+from img_preprocessing import preprocess_image
 
 # Default styles for the baseline
 DEFAULT_STYLES = {
@@ -35,7 +36,7 @@ def run_baseline_benchmark(
     save_segmentation_maps: bool = True,
     device: str = None
 ):
-    """Run baseline Text-to-Image style transfer on all images in input_dir."""
+    """Preprocess input images and run baseline Text-to-Image style transfer."""
     input_path = Path(input_dir)
     output_path = Path(output_dir)
 
@@ -79,6 +80,7 @@ def run_baseline_benchmark(
     print("[3/3] Running benchmark across all images and styles...\n")
     metadata_log = {
         "benchmark_type": "baseline_style_only",
+        "preprocessing_enabled": True,
         "seed": seed,
         "num_inference_steps": num_inference_steps,
         "guidance_scale": guidance_scale,
@@ -94,6 +96,12 @@ def run_baseline_benchmark(
     for img_file in tqdm(image_files, desc="Processing Images"):
         img_name = img_file.stem
         input_img = Image.open(img_file).convert("RGB")
+        original_size = input_img.size
+
+        print(f"Preprocessing dell'immagine: {img_file.name}")
+        t_preprocess = time.time()
+        input_img = preprocess_image(input_img, return_pil=True)
+        preprocessing_time = time.time() - t_preprocess
         
         t0 = time.time()
         # 1. Compute segmentation map once per image
@@ -107,7 +115,9 @@ def run_baseline_benchmark(
         item_log = {
             "image_name": img_name,
             "original_path": str(img_file),
-            "original_size": input_img.size,
+            "original_size": original_size,
+            "preprocessed_size": input_img.size,
+            "preprocessing_time_sec": round(preprocessing_time, 3),
             "segmentation_time_sec": round(t_seg, 3),
             "generations": {}
         }
