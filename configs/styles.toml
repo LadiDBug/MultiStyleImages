@@ -1,14 +1,13 @@
 # definisce i tre stili
-# LACHI METTI I TUOI PROMPT
 
 [styles.gta5]
-prompt = "a city street in GTA V video game style, semi-realistic 3D game graphics"
+prompt = "GTA V in-game open-world rendering, not illustrated loading-screen artwork: sunlit natural colors, warm golden light, crisp game textures, realistic materials and atmospheric haze. Keep natural surfaces non-emissive."
 negative_prompt = "blurry, distorted, watermark, signature, text"
 
 [styles.cyberpunk]
-prompt = "a futuristic cyberpunk city, neon lights, science fiction atmosphere"
+prompt = "Futuristic cyberpunk rendering: high tech, low life, neon glow, cyan and magenta accents, deep violet shadows, emissive edge lighting and high contrast. Apply these to existing surfaces."
 negative_prompt = "blurry, distorted, watermark, signature, text"
 
 [styles.pixel_art]
-prompt = "a city scene in pixel art style, visible square pixels, limited color palette"
+prompt = "Pixel art rendering: 8-bit or 16-bit video game style, limited palette, blocky shapes, dithering, and pixel-level detail. Apply these to existing surfaces."
 negative_prompt = "blurry, watermark, signature, text"
