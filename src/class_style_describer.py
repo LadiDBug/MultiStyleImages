@@ -16,7 +16,8 @@ MODEL_ID = "Qwen/Qwen2.5-1.5B-Instruct"
 
 STYLE_DIRECTIONS = {
     "cyberpunk": (
-        "Futuristic cyberpunk rendering; cyan and magenta accents, deep violet shadows, "
+        "Futuristic cyberpunk rendering: high tech, low life, neon glow, "
+        "cyan and magenta accents, deep violet shadows, "
         "emissive edge lighting and high contrast. Apply these to existing surfaces."
     ),
     "gta v": (
@@ -24,13 +25,10 @@ STYLE_DIRECTIONS = {
         "sunlit natural colors, warm golden light, crisp game textures, realistic "
         "materials and atmospheric haze. Keep natural surfaces non-emissive."
     ),
-    "mario kart": (
-        "Mario Kart colorful 3D cartoon rendering: bright primary colors, rounded "
-        "stylized forms, smooth simplified materials and cheerful soft lighting."
-    ),
-    "studio ghibli": (
-        "Studio Ghibli hand-painted animation backgrounds: watercolor-like textures, "
-        "soft organic brushwork, gentle natural light and harmonious earthy pastels."
+    "pixel art": (
+        "Pixel art rendering: 8-bit"
+        "or 16-bit video game style, limited palette,"
+        "blocky shapes, dithering, and pixel-level detail. Apply these to existing surfaces."
     ),
 }
 

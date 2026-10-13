@@ -32,8 +32,7 @@ class SemanticFeature:
 STYLE_PROMPTS = {
     "cyberpunk": "cyberpunk style",
     "gta v": "GTA V style",
-    "mario kart": "Mario Kart style",
-    "studio ghibli": "Studio Ghibli style",
+    "pixel art": "pixel art style",
 }
 
 

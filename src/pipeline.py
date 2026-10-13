@@ -94,6 +94,7 @@ def main(
     min_area_ratio=0.01,
     max_classes=8,
     prompt_backend="llm",
+    preprocess=True,
 ):
     """Use llm/template prompts, or automatic_prompt=False for style only."""
     import os
@@ -106,6 +107,11 @@ def main(
     else:
         print("1/3 Caricamento foto e calcolo mappa semantica...")
         input_img = Image.open(image_path).convert("RGB")
+
+        if preprocess:
+            from img_preprocessing import preprocess_image
+            print("Applicazione del preprocessing dell'immagine...")
+            input_img = preprocess_image(input_img, return_pil=True)
         
         # One inference supplies both semantic text and the RGB control map.
         segmentor = SemanticSegmentor()
@@ -146,7 +152,7 @@ def main(
             from transformers import AutoTokenizer
             sd_tokenizer = AutoTokenizer.from_pretrained(SD_MODEL_ID, subfolder="tokenizer")
             prompt, composition = compose_prompt(description, features, style_key, sd_tokenizer)
-            record = {
+            record = { 
                 "model": describer.model_id, "style": style_key,
                 "selected_classes": [asdict(feature) for feature in features],
                 "description": description, "composition": composition, "prompt": prompt,
@@ -182,8 +188,9 @@ def main(
 
 if __name__ == "__main__":
     main(
-        image_path="test_images/paesaggio-1024x683.png",
-        style="Cyberpunk",
+        image_path="test_images/landscape_005.jpg",
+        style="cyberpunk",
         automatic_prompt=True,  # False: baseline with only the style prompt.
         prompt_backend="llm",  # "template": deterministic class + style prompt.
+        preprocess=True,  # True: apply anti-noise / color balance preprocessing.
     )
