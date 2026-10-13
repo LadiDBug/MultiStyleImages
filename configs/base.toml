@@ -6,10 +6,9 @@ seeds = [42]
 condition = "none"
 
 [model]
-base = "stable-diffusion-v1-5/stable-diffusion-v1-5"
-revision = "main"
-device = "auto"
-cache_dir = ".cache/huggingface"
+id = "stable-diffusion-v1-5/stable-diffusion-v1-5"
+device = "cuda"
+dtype = "float16"
 
 [generation]
 height = 512
@@ -17,11 +16,8 @@ width = 512
 steps = 30
 guidance_scale = 7.5
 strength = 0.65
-scheduler = "UniPCMultistepScheduler"
-resize_mode = "center_crop"
 
-[run]
-input_dir = "src/test_images"
-output_dir = "outputs/rq1"
-styles = ["cyberpunk"]
-limit = 1
+
+[controlnet]
+conditioning_scale= 0.8
+
