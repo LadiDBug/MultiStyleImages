@@ -22,3 +22,6 @@ loras/*.safetensors
 .DS_Store
 *.env
 test_images/**
+outputs/
+.cache/
+data/

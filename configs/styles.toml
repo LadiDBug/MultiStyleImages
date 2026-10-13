@@ -1,0 +1,14 @@
+# definisce i tre stili
+# LACHI METTI I TUOI PROMPT
+
+[styles.gta5]
+prompt = "a city street in GTA V video game style, semi-realistic 3D game graphics"
+negative_prompt = "blurry, distorted, watermark, signature, text"
+
+[styles.cyberpunk]
+prompt = "a futuristic cyberpunk city, neon lights, science fiction atmosphere"
+negative_prompt = "blurry, distorted, watermark, signature, text"
+
+[styles.pixel_art]
+prompt = "a city scene in pixel art style, visible square pixels, limited color palette"
+negative_prompt = "blurry, watermark, signature, text"

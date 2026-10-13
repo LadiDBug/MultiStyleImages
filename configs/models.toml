@@ -1,0 +1,7 @@
+# ci mettiamo i checkpoint di controlnet
+
+# Riservato alla fase ControlNet: la baseline non legge questi checkpoint.
+[controlnets]
+canny = "lllyasviel/control_v11p_sd15_canny"
+depth = "lllyasviel/control_v11f1p_sd15_depth"
+segmentation = "lllyasviel/control_v11p_sd15_seg"
