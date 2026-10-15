@@ -12,8 +12,7 @@ negative_prompt = "blurry, distorted, watermark, signature"
 
 [styles.cyberpunk]
 # Target attuale: estetica cyberpunk generale.
-prompt = "Futuristic cyberpunk rendering: high tech, low life, neon glow, cyan and magenta accents, deep violet shadows, emissive edge lighting and high contrast. Apply these to existing surfaces."
-negative_prompt = "blurry, distorted, watermark, signature"
+prompt = "Cyberpunk digital artwork of a mountain lake and forest, dramatic violet and deep blue shadows, vivid magenta and cyan lighting, neon reflections across the water, stylized futuristic atmosphere, strongly shifted color palette"
 
 [styles.pixel_art]
 prompt = "Pixel art rendering: 8-bit or 16-bit video game style, limited palette, blocky shapes, dithering, and pixel-level detail. Apply these to existing surfaces."
