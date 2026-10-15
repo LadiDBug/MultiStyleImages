@@ -127,6 +127,16 @@ def main() -> None:
                         }
                         started = perf_counter()
                         try:
+                            print(
+                                f"\nGenerazione: stile={style}, condizione={condition}, seed={seed}\n"
+                                f"Prompt: {style_config['prompt']}\n"
+                                f"Negative prompt: {style_config['negative_prompt']}\n"
+                                f"Strength: {parameters['strength']}, "
+                                f"guidance: {parameters['guidance_scale']}, "
+                                f"ControlNet scale: {control_kwargs.get('controlnet_conditioning_scale')}\n"
+                                f"Output: {output_path}",
+                                flush=True,
+                            )
                             output = generate(
                                 pipe=pipe,
                                 image=image,
