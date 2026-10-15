@@ -1,3 +1,4 @@
+import math
 import tomllib
 from pathlib import Path
 
@@ -8,10 +9,16 @@ def load_config(path: str | Path) -> dict:
         return tomllib.load(f)
 
 
-def load_experiment_config(project_root: str | Path | None = None) -> dict:
-    """Carica la configurazione della baseline, senza caricare modelli.
+def load_experiment_config(
+    project_root: str | Path | None = None,
+    *,
+    condition: str | None = None,
+) -> dict:
+    """Carica la configurazione img2img, senza caricare modelli.
 
-    Restituisce le sezioni model, generation, experiment, data e styles.
+    Restituisce model, generation, preprocessing, experiment, data e styles.
+    Se e' richiesto canny, include anche controlnet e controlnets.
+    condition, se specificata, sostituisce le condizioni del TOML per il run.
     I percorsi in data sono oggetti Path assoluti; non vengono create cartelle.
     """
     root = (
@@ -25,6 +32,8 @@ def load_experiment_config(project_root: str | Path | None = None) -> dict:
     styles = load_config(config_dir / "styles.toml")["styles"]
 
     experiment = main["experiment"]
+    if condition is not None:
+        experiment["conditions"] = [condition]
     selected_styles = experiment["styles"]
     if not isinstance(selected_styles, list) or not selected_styles:
         raise ValueError("experiment.styles deve essere una lista non vuota.")
@@ -35,14 +44,62 @@ def load_experiment_config(project_root: str | Path | None = None) -> dict:
             if not isinstance(styles[style].get(field), str):
                 raise ValueError(f"styles.{style}.{field} deve essere una stringa.")
 
-    if experiment["conditions"] != ["none"]:
-        raise ValueError('La baseline richiede conditions = ["none"].')
+    conditions = experiment["conditions"]
+    if (
+        not isinstance(conditions, list)
+        or not conditions
+        or any(
+            not isinstance(condition, str) or condition not in {"none", "canny"}
+            for condition in conditions
+        )
+        or len(conditions) != len(set(conditions))
+    ):
+        raise ValueError(
+            "experiment.conditions deve essere una lista non vuota, "
+            "senza duplicati, contenente solo 'none' e/o 'canny'."
+        )
+
+    control_config = {}
+    if "canny" in conditions:
+        controlnet = base.get("controlnet", {})
+        scale = controlnet.get("conditioning_scale")
+        if (
+            type(scale) not in (int, float)
+            or not math.isfinite(scale)
+            or scale < 0
+        ):
+            raise ValueError(
+                "controlnet.conditioning_scale deve essere un numero finito non negativo."
+            )
+        checkpoints = load_config(config_dir / "models.toml").get("controlnets", {})
+        checkpoint = checkpoints.get("canny")
+        if not isinstance(checkpoint, str) or not checkpoint.strip():
+            raise ValueError("models.toml deve definire controlnets.canny non vuoto.")
+        control_config = {
+            "controlnet": controlnet,
+            "controlnets": {"canny": checkpoint},
+        }
 
     seeds = experiment["seeds"]
     if not isinstance(seeds, list) or not seeds or any(
         type(seed) is not int or seed < 0 for seed in seeds
     ):
         raise ValueError("experiment.seeds deve contenere interi non negativi.")
+
+    # Il preprocessing resta separato dai parametri passati a generate().
+    preprocessing = base["preprocessing"]
+    canny = preprocessing["canny"]
+    low = canny.get("low_threshold")
+    high = canny.get("high_threshold")
+    if (
+        type(low) is not int
+        or type(high) is not int
+        or not 0 <= low < high <= 255
+    ):
+        raise ValueError(
+            "preprocessing.canny: le soglie devono essere interi "
+            "con 0 <= low_threshold < high_threshold <= 255."
+        )
 
     data = dict(main["data"])
     for field in ("input_dir", "output_dir"):
@@ -54,8 +111,10 @@ def load_experiment_config(project_root: str | Path | None = None) -> dict:
     return {
         "model": base["model"],
         "generation": base["generation"],
+        "preprocessing": preprocessing,
         "experiment": experiment,
         "data": data,
         "styles": styles,
+        **control_config,
     }
 

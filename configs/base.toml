@@ -18,3 +18,15 @@ steps = 30
 guidance_scale = 7.5
 strength = 0.45
 
+# Forza del vincolo strutturale, usata solo nei rami ControlNet.
+# Valore iniziale da validare nel pilot.
+[controlnet]
+conditioning_scale = 0.8
+
+
+# Estrazione dei bordi dalla foto gia' preparata per img2img.
+# Valori iniziali da validare osservando la mappa prodotta.
+[preprocessing.canny]
+low_threshold = 100
+high_threshold = 200
+

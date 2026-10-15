@@ -1,6 +1,9 @@
 """Runner iniziale: una fotografia, tutti gli stili e seed configurati."""
 
+import argparse
+import gc
 import json
+import torch
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
@@ -9,12 +12,31 @@ from src.utils.config import load_experiment_config
 from src.generation.pipeline import load_pipeline
 from src.generation.generator import generate
 from src.preprocessing.img_preprocess import preprocess_image
+from src.preprocessing.canny import extract_canny
 
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    condition_group = parser.add_mutually_exclusive_group()
+    condition_group.add_argument(
+        "-canny", "--canny", dest="condition", action="store_const", const="canny",
+        help="Esegue solo ControlNet Canny, sostituendo le condizioni del TOML.",
+    )
+    condition_group.add_argument(
+        "-none", "--none", dest="condition", action="store_const", const="none",
+        help="Esegue solo la baseline, sostituendo le condizioni del TOML.",
+    )
+    parser.add_argument(
+        "--prepare-canny-only",
+        action="store_true",
+        help="Salva foto preparata e mappa Canny senza caricare Stable Diffusion.",
+    )
+    args = parser.parse_args()
     root = Path(__file__).resolve().parent
-    config = load_experiment_config(root)
+    if args.prepare_canny_only and args.condition is not None:
+        parser.error("Usare --prepare-canny-only senza -canny o -none.")
+    config = load_experiment_config(root, condition=args.condition)
     input_dir = config["data"]["input_dir"]
     if not input_dir.is_dir():
         raise FileNotFoundError(f"Cartella input non trovata: {input_dir}")
@@ -38,7 +60,11 @@ def main() -> None:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
     run_dir = config["data"]["output_dir"] / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
-    snapshot = {**config, "input_image": str(image_path)}
+    snapshot = {
+        **config,
+        "input_image": str(image_path),
+        "mode": "prepare_canny_only" if args.prepare_canny_only else "generation",
+    }
     (run_dir / "run_config.json").write_text(
         json.dumps(snapshot, indent=2, ensure_ascii=False, default=str),
         encoding="utf-8",
@@ -46,52 +72,87 @@ def main() -> None:
     # Conserva la foto esatta passata al modello per il confronto visivo.
     image.save(run_dir / "input_preprocessed.png")
 
-    model = config["model"]
-    pipe = load_pipeline(
-        model_id=model["id"], device=model["device"], dtype=model["dtype"]
-    )
+    conditions = config["experiment"]["conditions"]
+    canny_image = None
+    map_path = None
+    if args.prepare_canny_only or "canny" in conditions:
+        canny_parameters = config["preprocessing"]["canny"]
+        canny_image = extract_canny(image, **canny_parameters)
+        map_dir = run_dir / "maps" / "canny"
+        map_dir.mkdir(parents=True, exist_ok=True)
+        map_path = map_dir / f"{image_path.stem}.png"
+        canny_image.save(map_path)
+        print(f"Mappa Canny salvata: {map_path}")
+    if args.prepare_canny_only:
+        return
 
+    model = config["model"]
     with (run_dir / "metadata.jsonl").open("a", encoding="utf-8") as metadata:
-        for style in config["experiment"]["styles"]:
-            style_config = config["styles"][style]
-            output_dir = run_dir / "images" / style / "none"
-            output_dir.mkdir(parents=True, exist_ok=True)
-            for seed in config["experiment"]["seeds"]:
-                output_path = output_dir / f"{image_path.stem}_seed{seed}.png"
-                record = {
-                    "image_id": image_path.name,
-                    "input_path": str(image_path),
-                    "style": style,
-                    "condition": "none",
-                    "seed": seed,
-                    **style_config,
-                    "model": model,
-                    "scheduler": type(pipe.scheduler).__name__,
-                    "generation": parameters,
-                    "output_path": str(output_path),
-                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        for condition in conditions:
+            checkpoint = config["controlnets"][condition] if condition != "none" else None
+            control_kwargs = {}
+            if condition == "canny":
+                control_kwargs = {
+                    "condition_image": canny_image,
+                    "controlnet_conditioning_scale": config["controlnet"]["conditioning_scale"],
                 }
-                started = perf_counter()
-                try:
-                    output = generate(
-                        pipe=pipe,
-                        image=image,
-                        prompt=style_config["prompt"],
-                        negative_prompt=style_config["negative_prompt"],
-                        seed=seed,
-                        **parameters,
-                    )
-                    output.save(output_path)
-                except Exception as error:
-                    record.update(status="error", error=f"{type(error).__name__}: {error}")
-                    raise
-                else:
-                    record["status"] = "success"
-                    print(f"Salvata: {output_path}")
-                finally:
-                    record["duration_seconds"] = perf_counter() - started
-                    metadata.write(json.dumps(record, ensure_ascii=False) + "\n")
-                    metadata.flush()
+            print(f"Caricamento pipeline: {condition}")
+            pipe = load_pipeline(
+                model_id=model["id"], device=model["device"], dtype=model["dtype"],
+                condition=condition, controlnet_id=checkpoint,
+            )
+            try:
+                for style in config["experiment"]["styles"]:
+                    style_config = config["styles"][style]
+                    output_dir = run_dir / "images" / style / condition
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    for seed in config["experiment"]["seeds"]:
+                        output_path = output_dir / f"{image_path.stem}_seed{seed}.png"
+                        record = {
+                            "image_id": image_path.name,
+                            "input_path": str(image_path),
+                            "style": style,
+                            "condition": condition,
+                            "seed": seed,
+                            **style_config,
+                            "model": model,
+                            "scheduler": type(pipe.scheduler).__name__,
+                            "generation": parameters,
+                            "controlnet_checkpoint": checkpoint,
+                            "controlnet_conditioning_scale": control_kwargs.get("controlnet_conditioning_scale"),
+                            "condition_image_path": str(map_path) if condition == "canny" else None,
+                            "canny_parameters": config["preprocessing"]["canny"] if condition == "canny" else None,
+                            "output_path": str(output_path),
+                            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                        }
+                        started = perf_counter()
+                        try:
+                            output = generate(
+                                pipe=pipe,
+                                image=image,
+                                prompt=style_config["prompt"],
+                                negative_prompt=style_config["negative_prompt"],
+                                seed=seed,
+                                **parameters,
+                                **control_kwargs,
+                            )
+                            output.save(output_path)
+                        except Exception as error:
+                            record.update(status="error", error=f"{type(error).__name__}: {error}")
+                            raise
+                        else:
+                            record["status"] = "success"
+                            print(f"Salvata: {output_path}")
+                        finally:
+                            record["duration_seconds"] = perf_counter() - started
+                            metadata.write(json.dumps(record, ensure_ascii=False) + "\n")
+                            metadata.flush()
+            finally:
+                # Libera la pipeline prima di caricare la condizione successiva.
+                del pipe
+                gc.collect()
+                if torch.device(model["device"]).type == "cuda":
+                    torch.cuda.empty_cache()
 
     print(f"Run completato: {run_dir}")
 

@@ -3,13 +3,13 @@
 
 
 [experiment]
-name = "rq1_baseline"
+name = "rq1_none_vs_canny"
 styles = ["gta5", "cyberpunk", "pixel_art"]
 
-# Baseline img2img senza ControlNet.
-conditions = ["none"]
+# Confronto tra baseline img2img e ControlNet Canny.
+conditions = ["none", "canny"]
 
-# Un seed iniziale per verificare la baseline sui tre stili.
+# Stesso seed per confrontare le condizioni sui tre stili.
 seeds = [42]
 
 # Percorsi relativi alla radice del repository.
