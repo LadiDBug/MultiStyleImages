@@ -1,6 +1,9 @@
-# ci mettiamo i checkpoint di controlnet
 
-# Riservato alla fase ControlNet: la baseline non legge questi checkpoint.
+# La baseline (condition = "none") non deve caricare questi modelli.
+# Il backbone Stable Diffusion e' definito in base.toml.
+# Prima dell'uso, verificare revisioni e compatibilita' con i preprocessori.
+
+
 [controlnets]
 canny = "lllyasviel/control_v11p_sd15_canny"
 depth = "lllyasviel/control_v11f1p_sd15_depth"
