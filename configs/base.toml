@@ -16,12 +16,12 @@ steps = 30
 # sulla generazione. Più è alta più spinge il modello verso
 # caratteristiche compatibili con il prompt
 guidance_scale = 7.5
-strength = 0.45
+strength = 0.65
 
 # Forza del vincolo strutturale, usata solo nei rami ControlNet.
 # Valore iniziale da validare nel pilot.
 [controlnet]
-conditioning_scale = 0.65
+conditioning_scale = 0.8
 
 
 # Estrazione dei bordi dalla foto gia' preparata per img2img.
