@@ -21,7 +21,7 @@ strength = 0.45
 # Forza del vincolo strutturale, usata solo nei rami ControlNet.
 # Valore iniziale da validare nel pilot.
 [controlnet]
-conditioning_scale = 0.8
+conditioning_scale = 0.45
 
 
 # Estrazione dei bordi dalla foto gia' preparata per img2img.
