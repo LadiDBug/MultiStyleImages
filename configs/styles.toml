@@ -7,16 +7,16 @@
 
 [styles.gta5]
 prompt = "GTA V in-game open-world rendering, not illustrated loading-screen artwork: sunlit natural colors, warm golden light, crisp game textures, realistic materials and atmospheric haze. Keep natural surfaces non-emissive."
-# negative_prompt = "blurry, distorted, watermark, signature"
-negative_prompt = ""
+negative_prompt = "blurry, distorted, watermark, signature"
+# negative_prompt = ""
 
 [styles.cyberpunk]
 # Target attuale: estetica cyberpunk generale.
 prompt = "Futuristic cyberpunk rendering: high tech, low life, neon glow, cyan and magenta accents, deep violet shadows, emissive edge lighting and high contrast. Apply these to existing surfaces."
-# negative_prompt = "blurry, distorted, watermark, signature, text"
-negative_prompt = ""
+negative_prompt = "blurry, distorted, watermark, signature, text"
+# negative_prompt = ""
 
 [styles.pixel_art]
 prompt = "Pixel art rendering: 8-bit or 16-bit video game style, limited palette, blocky shapes, dithering, and pixel-level detail. Apply these to existing surfaces."
-# negative_prompt = "blurry, watermark, signature"
-negative_prompt = ""
+negative_prompt = "blurry, watermark, signature"
+# negative_prompt = ""
