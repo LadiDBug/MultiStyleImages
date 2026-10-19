@@ -17,7 +17,7 @@ def load_experiment_config(
     """Carica la configurazione img2img, senza caricare modelli.
 
     Restituisce model, generation, preprocessing, experiment, data e styles.
-    Se sono richiesti canny o segmentation, include controlnet e controlnets.
+    Se sono richiesti canny, depth o segmentation, include controlnet e controlnets.
     condition, se specificata, sostituisce le condizioni del TOML per il run.
     I percorsi in data sono oggetti Path assoluti; non vengono create cartelle.
     """
@@ -50,14 +50,14 @@ def load_experiment_config(
         or not conditions
         or any(
             not isinstance(condition, str)
-            or condition not in {"none", "canny", "segmentation"}
+            or condition not in {"none", "canny", "depth", "segmentation"}
             for condition in conditions
         )
         or len(conditions) != len(set(conditions))
     ):
         raise ValueError(
             "experiment.conditions deve essere una lista non vuota, "
-            "senza duplicati, contenente solo 'none', 'canny' o 'segmentation'."
+            "senza duplicati, contenente solo 'none', 'canny', 'depth' o 'segmentation'."
         )
 
     control_config = {}
@@ -95,13 +95,15 @@ def load_experiment_config(
 
     # Il preprocessing resta separato dai parametri passati a generate().
     preprocessing = base["preprocessing"]
-    if "segmentation" in conditions:
-        segmentation = preprocessing.get("segmentation", {})
-        model_id = segmentation.get("model_id")
-        if not isinstance(model_id, str) or not model_id.strip():
-            raise ValueError(
-                "preprocessing.segmentation.model_id deve essere un checkpoint non vuoto."
-            )
+    for learned_condition in ("segmentation", "depth"):
+        if learned_condition in conditions:
+            preprocessor_config = preprocessing.get(learned_condition, {})
+            model_id = preprocessor_config.get("model_id")
+            if not isinstance(model_id, str) or not model_id.strip():
+                raise ValueError(
+                    f"preprocessing.{learned_condition}.model_id "
+                    "deve essere un checkpoint non vuoto."
+                )
     canny = preprocessing["canny"]
     low = canny.get("low_threshold")
     high = canny.get("high_threshold")

@@ -9,9 +9,6 @@ from diffusers import (
 )
 
 
-# TODO RQ1: abilitare depth dopo aver validato il relativo preprocessore.
-
-
 def load_pipeline(
     model_id: str,
     device: str = "cuda",
@@ -23,11 +20,13 @@ def load_pipeline(
     """Carica il modello e lo scheduler, senza eseguire generazioni.
 
     model_id, device e dtype provengono dalla sezione model di base.toml.
-    Per canny e segmentation, controlnet_id deve provenire da models.toml.
+    Per canny, depth e segmentation, controlnet_id proviene da models.toml.
     Il primo caricamento puo' scaricare il checkpoint se non e' in cache.
     """
-    if condition not in {"none", "canny", "segmentation"}:
-        raise ValueError("Condizioni supportate: 'none', 'canny', 'segmentation'.")
+    if condition not in {"none", "canny", "depth", "segmentation"}:
+        raise ValueError(
+            "Condizioni supportate: 'none', 'canny', 'depth', 'segmentation'."
+        )
     if condition == "none" and controlnet_id is not None:
         raise ValueError("La baseline non deve ricevere un checkpoint ControlNet.")
     if condition != "none" and (

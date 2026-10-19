@@ -35,3 +35,8 @@ high_threshold = 200
 [preprocessing.segmentation]
 model_id = "openmmlab/upernet-convnext-base"
 
+# MiDaS stima la profondita' relativa dalla foto scelta dal runner.
+# Il checkpoint ControlNet Depth e' definito in models.toml.
+[preprocessing.depth]
+model_id = "Intel/dpt-hybrid-midas"
+

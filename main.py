@@ -30,6 +30,10 @@ def main() -> None:
         help="Esegue solo ControlNet Segmentation, sostituendo le condizioni del TOML.",
     )
     condition_group.add_argument(
+        "-depth", "--depth", dest="condition", action="store_const", const="depth",
+        help="Esegue solo ControlNet Depth, sostituendo le condizioni del TOML.",
+    )
+    condition_group.add_argument(
         "-none", "--none", dest="condition", action="store_const", const="none",
         help="Esegue solo la baseline, sostituendo le condizioni del TOML.",
     )
@@ -49,11 +53,17 @@ def main() -> None:
         action="store_true",
         help="Salva solo foto e mappe semantiche, senza caricare Stable Diffusion.",
     )
+    preparation_group.add_argument(
+        "--prepare-depth-only",
+        action="store_true",
+        help="Salva solo foto e mappa depth, senza caricare Stable Diffusion.",
+    )
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     preparation_condition = (
         "canny" if args.prepare_canny_only
-        else "segmentation" if args.prepare_segmentation_only else None
+        else "segmentation" if args.prepare_segmentation_only
+        else "depth" if args.prepare_depth_only else None
     )
     if preparation_condition is not None and args.condition is not None:
         parser.error("Usare le opzioni --prepare-...-only senza flag di generazione.")
@@ -105,6 +115,7 @@ def main() -> None:
     condition_images = {}
     map_paths = {}
     labels_path = None
+    depth_values_path = None
     if args.prepare_canny_only or "canny" in conditions:
         canny_parameters = config["preprocessing"]["canny"]
         canny_image = extract_canny(image, **canny_parameters)
@@ -140,6 +151,34 @@ def main() -> None:
             print(f"Mappa semantica salvata: {segmentation_path}")
         finally:
             del segmentor
+            gc.collect()
+            if torch.device(config["model"]["device"]).type == "cuda":
+                torch.cuda.empty_cache()
+
+    if "depth" in conditions:
+        import numpy as np
+        from src.preprocessing.depth import DepthEstimator
+
+        depth_config = config["preprocessing"]["depth"]
+        print(f"Caricamento stimatore depth: {depth_config['model_id']}")
+        estimator = DepthEstimator(
+            model_name=depth_config["model_id"],
+            device=config["model"]["device"],
+        )
+        try:
+            depth_values = estimator.process_depth(image)
+            depth_image = estimator.depth_to_image(depth_values)
+            depth_dir = run_dir / "maps" / "depth"
+            depth_dir.mkdir(parents=True, exist_ok=True)
+            depth_path = depth_dir / f"{image_path.stem}.png"
+            depth_values_path = depth_dir / f"{image_path.stem}_depth.npy"
+            depth_image.save(depth_path)
+            np.save(depth_values_path, depth_values, allow_pickle=False)
+            condition_images["depth"] = depth_image
+            map_paths["depth"] = depth_path
+            print(f"Mappa depth salvata: {depth_path}")
+        finally:
+            del estimator
             gc.collect()
             if torch.device(config["model"]["device"]).type == "cuda":
                 torch.cuda.empty_cache()
@@ -187,6 +226,9 @@ def main() -> None:
                             "canny_parameters": config["preprocessing"]["canny"] if condition == "canny" else None,
                             "segmentation_parameters": config["preprocessing"]["segmentation"] if condition == "segmentation" else None,
                             "segmentation_labels_path": str(labels_path) if condition == "segmentation" else None,
+                            "depth_parameters": config["preprocessing"]["depth"] if condition == "depth" else None,
+                            "depth_values_path": str(depth_values_path) if condition == "depth" else None,
+                            "depth_normalization": "per_image_minmax_0_255_near_white" if condition == "depth" else None,
                             "output_path": str(output_path),
                             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
                         }
