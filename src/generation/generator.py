@@ -18,6 +18,7 @@ def generate(
     steps: int,
     guidance_scale: float,
     strength: float,
+    use_original_image: bool = False,
     condition_image: Image.Image | None = None,
     controlnet_conditioning_scale: float | None = None,
 ) -> Image.Image:
@@ -25,15 +26,19 @@ def generate(
 
     I parametri keyword corrispondono alla sezione generation di base.toml.
     Il preprocessing deve fornire una foto RGB delle dimensioni configurate.
+    Con use_original_image=True, solo nella baseline, width e height sono
+    ignorati e gli adattamenti dimensionali sono lasciati a Diffusers.
     Con ControlNet servono anche una mappa RGB allineata e la sua forza.
     La funzione non deve sapere come e' stata prodotta la mappa.
     Il seed e' ripetibile nei limiti delle versioni software e dell'hardware.
     """
     if image.mode != "RGB":
         raise ValueError("La foto deve essere convertita in RGB dal preprocessing.")
-    if width <= 0 or height <= 0 or width % 8 or height % 8:
+    if use_original_image and isinstance(pipe, StableDiffusionControlNetImg2ImgPipeline):
+        raise ValueError("use_original_image e' supportato solo dalla baseline.")
+    if not use_original_image and (width <= 0 or height <= 0 or width % 8 or height % 8):
         raise ValueError("width e height devono essere positivi e multipli di 8.")
-    if image.size != (width, height):
+    if not use_original_image and image.size != (width, height):
         raise ValueError(
             f"Foto di dimensioni {image.size}; attese {(width, height)}. "
             "Applicare il preprocessing prima della generazione."

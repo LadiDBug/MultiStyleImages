@@ -4,6 +4,7 @@ import argparse
 import gc
 import json
 import torch
+from PIL import Image
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
@@ -28,6 +29,11 @@ def main() -> None:
         help="Esegue solo la baseline, sostituendo le condizioni del TOML.",
     )
     parser.add_argument(
+        "--no-preprocess",
+        action="store_true",
+        help="Usa la foto RGB originale, senza crop o resize, solo per la baseline.",
+    )
+    parser.add_argument(
         "--prepare-canny-only",
         action="store_true",
         help="Salva foto preparata e mappa Canny senza caricare Stable Diffusion.",
@@ -37,6 +43,10 @@ def main() -> None:
     if args.prepare_canny_only and args.condition is not None:
         parser.error("Usare --prepare-canny-only senza -canny o -none.")
     config = load_experiment_config(root, condition=args.condition)
+    if args.no_preprocess and (
+        args.prepare_canny_only or config["experiment"]["conditions"] != ["none"]
+    ):
+        parser.error("Usare --no-preprocess insieme a --none, senza --prepare-canny-only.")
     input_dir = config["data"]["input_dir"]
     if not input_dir.is_dir():
         raise FileNotFoundError(f"Cartella input non trovata: {input_dir}")
@@ -52,9 +62,13 @@ def main() -> None:
     # Prima prova: solo la prima foto in ordine alfabetico.
     image_path = images[0]
     parameters = config["generation"]
-    image = preprocess_image(
-        image_path, width=parameters["width"], height=parameters["height"]
-    )
+    if args.no_preprocess:
+        with Image.open(image_path) as source:
+            image = source.convert("RGB")
+    else:
+        image = preprocess_image(
+            image_path, width=parameters["width"], height=parameters["height"]
+        )
     print(f"Foto selezionata: {image_path}")
 
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
@@ -63,6 +77,8 @@ def main() -> None:
     snapshot = {
         **config,
         "input_image": str(image_path),
+        "preprocessing_enabled": not args.no_preprocess,
+        "input_size": image.size,
         "mode": "prepare_canny_only" if args.prepare_canny_only else "generation",
     }
     (run_dir / "run_config.json").write_text(
@@ -70,7 +86,7 @@ def main() -> None:
         encoding="utf-8",
     )
     # Conserva la foto esatta passata al modello per il confronto visivo.
-    image.save(run_dir / "input_preprocessed.png")
+    image.save(run_dir / ("input_original.png" if args.no_preprocess else "input_preprocessed.png"))
 
     conditions = config["experiment"]["conditions"]
     canny_image = None
@@ -118,6 +134,8 @@ def main() -> None:
                             "model": model,
                             "scheduler": type(pipe.scheduler).__name__,
                             "generation": parameters,
+                            "preprocessing_enabled": not args.no_preprocess,
+                            "input_size": image.size,
                             "controlnet_checkpoint": checkpoint,
                             "controlnet_conditioning_scale": control_kwargs.get("controlnet_conditioning_scale"),
                             "condition_image_path": str(map_path) if condition == "canny" else None,
@@ -143,6 +161,7 @@ def main() -> None:
                                 prompt=style_config["prompt"],
                                 negative_prompt=style_config["negative_prompt"],
                                 seed=seed,
+                                use_original_image=args.no_preprocess,
                                 **parameters,
                                 **control_kwargs,
                             )
