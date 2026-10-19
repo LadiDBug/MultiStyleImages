@@ -31,7 +31,7 @@ def main() -> None:
     parser.add_argument(
         "--no-preprocess",
         action="store_true",
-        help="Usa la foto RGB originale, senza crop o resize, solo per la baseline.",
+        help="Usa la foto RGB originale, senza crop o resize, per baseline e Canny.",
     )
     parser.add_argument(
         "--prepare-canny-only",
@@ -43,10 +43,6 @@ def main() -> None:
     if args.prepare_canny_only and args.condition is not None:
         parser.error("Usare --prepare-canny-only senza -canny o -none.")
     config = load_experiment_config(root, condition=args.condition)
-    if args.no_preprocess and (
-        args.prepare_canny_only or config["experiment"]["conditions"] != ["none"]
-    ):
-        parser.error("Usare --no-preprocess insieme a --none, senza --prepare-canny-only.")
     input_dir = config["data"]["input_dir"]
     if not input_dir.is_dir():
         raise FileNotFoundError(f"Cartella input non trovata: {input_dir}")
