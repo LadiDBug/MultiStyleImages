@@ -12,7 +12,6 @@ __pycache__/
 # Immagini di test generate durante lo sviluppo
 test_segmentation_output.png
 test_pipeline_output.png
-*.jpg
 *.png
 
 # Pesi dei modelli pesanti o LoRA scaricati localmente (opzionale)
@@ -25,4 +24,5 @@ loras/*.safetensors
 test_images/**
 outputs/
 .cache/
-data/
+data/processed/
+data/references/
