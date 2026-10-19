@@ -65,5 +65,6 @@ def load_pipeline(
         )
 
     # Stesso scheduler e precisione per il confronto tra le condizioni.
-    pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
+    #pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
+    print(type(pipe.scheduler).__name__)
     return pipe.to(target_device)
