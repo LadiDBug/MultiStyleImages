@@ -30,3 +30,8 @@ conditioning_scale = 0.8
 low_threshold = 100
 high_threshold = 200
 
+# UperNet crea la mappa semantica dalla foto scelta dal runner.
+# Il checkpoint ControlNet che usa la mappa e' invece in models.toml.
+[preprocessing.segmentation]
+model_id = "openmmlab/upernet-convnext-base"
+

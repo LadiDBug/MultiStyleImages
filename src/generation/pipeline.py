@@ -9,7 +9,7 @@ from diffusers import (
 )
 
 
-# TODO RQ1: abilitare depth e segmentation dopo aver validato i preprocessori.
+# TODO RQ1: abilitare depth dopo aver validato il relativo preprocessore.
 
 
 def load_pipeline(
@@ -23,17 +23,17 @@ def load_pipeline(
     """Carica il modello e lo scheduler, senza eseguire generazioni.
 
     model_id, device e dtype provengono dalla sezione model di base.toml.
-    Per canny, controlnet_id deve provenire da models.toml.
+    Per canny e segmentation, controlnet_id deve provenire da models.toml.
     Il primo caricamento puo' scaricare il checkpoint se non e' in cache.
     """
-    if condition not in {"none", "canny"}:
-        raise ValueError("Condizione supportata: 'none' oppure 'canny'.")
+    if condition not in {"none", "canny", "segmentation"}:
+        raise ValueError("Condizioni supportate: 'none', 'canny', 'segmentation'.")
     if condition == "none" and controlnet_id is not None:
         raise ValueError("La baseline non deve ricevere un checkpoint ControlNet.")
-    if condition == "canny" and (
+    if condition != "none" and (
         not isinstance(controlnet_id, str) or not controlnet_id.strip()
     ):
-        raise ValueError("La condizione canny richiede controlnet_id.")
+        raise ValueError(f"La condizione {condition} richiede controlnet_id.")
 
     target_device = torch.device(device)
     if target_device.type == "cuda" and not torch.cuda.is_available():

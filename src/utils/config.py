@@ -17,7 +17,7 @@ def load_experiment_config(
     """Carica la configurazione img2img, senza caricare modelli.
 
     Restituisce model, generation, preprocessing, experiment, data e styles.
-    Se e' richiesto canny, include anche controlnet e controlnets.
+    Se sono richiesti canny o segmentation, include controlnet e controlnets.
     condition, se specificata, sostituisce le condizioni del TOML per il run.
     I percorsi in data sono oggetti Path assoluti; non vengono create cartelle.
     """
@@ -49,18 +49,20 @@ def load_experiment_config(
         not isinstance(conditions, list)
         or not conditions
         or any(
-            not isinstance(condition, str) or condition not in {"none", "canny"}
+            not isinstance(condition, str)
+            or condition not in {"none", "canny", "segmentation"}
             for condition in conditions
         )
         or len(conditions) != len(set(conditions))
     ):
         raise ValueError(
             "experiment.conditions deve essere una lista non vuota, "
-            "senza duplicati, contenente solo 'none' e/o 'canny'."
+            "senza duplicati, contenente solo 'none', 'canny' o 'segmentation'."
         )
 
     control_config = {}
-    if "canny" in conditions:
+    structural_conditions = [value for value in conditions if value != "none"]
+    if structural_conditions:
         controlnet = base.get("controlnet", {})
         scale = controlnet.get("conditioning_scale")
         if (
@@ -72,12 +74,17 @@ def load_experiment_config(
                 "controlnet.conditioning_scale deve essere un numero finito non negativo."
             )
         checkpoints = load_config(config_dir / "models.toml").get("controlnets", {})
-        checkpoint = checkpoints.get("canny")
-        if not isinstance(checkpoint, str) or not checkpoint.strip():
-            raise ValueError("models.toml deve definire controlnets.canny non vuoto.")
+        selected_checkpoints = {}
+        for structural_condition in structural_conditions:
+            checkpoint = checkpoints.get(structural_condition)
+            if not isinstance(checkpoint, str) or not checkpoint.strip():
+                raise ValueError(
+                    f"models.toml deve definire controlnets.{structural_condition} non vuoto."
+                )
+            selected_checkpoints[structural_condition] = checkpoint
         control_config = {
             "controlnet": controlnet,
-            "controlnets": {"canny": checkpoint},
+            "controlnets": selected_checkpoints,
         }
 
     seeds = experiment["seeds"]
@@ -88,6 +95,13 @@ def load_experiment_config(
 
     # Il preprocessing resta separato dai parametri passati a generate().
     preprocessing = base["preprocessing"]
+    if "segmentation" in conditions:
+        segmentation = preprocessing.get("segmentation", {})
+        model_id = segmentation.get("model_id")
+        if not isinstance(model_id, str) or not model_id.strip():
+            raise ValueError(
+                "preprocessing.segmentation.model_id deve essere un checkpoint non vuoto."
+            )
     canny = preprocessing["canny"]
     low = canny.get("low_threshold")
     high = canny.get("high_threshold")

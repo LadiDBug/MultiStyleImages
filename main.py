@@ -25,24 +25,39 @@ def main() -> None:
         help="Esegue solo ControlNet Canny, sostituendo le condizioni del TOML.",
     )
     condition_group.add_argument(
+        "-segmentation", "--segmentation", dest="condition", action="store_const",
+        const="segmentation",
+        help="Esegue solo ControlNet Segmentation, sostituendo le condizioni del TOML.",
+    )
+    condition_group.add_argument(
         "-none", "--none", dest="condition", action="store_const", const="none",
         help="Esegue solo la baseline, sostituendo le condizioni del TOML.",
     )
     parser.add_argument(
         "--no-preprocess",
         action="store_true",
-        help="Usa la foto RGB originale, senza crop o resize, per baseline e Canny.",
+        help="Usa la foto RGB originale, senza crop o resize, per tutte le condizioni.",
     )
-    parser.add_argument(
+    preparation_group = parser.add_mutually_exclusive_group()
+    preparation_group.add_argument(
         "--prepare-canny-only",
         action="store_true",
         help="Salva foto preparata e mappa Canny senza caricare Stable Diffusion.",
     )
+    preparation_group.add_argument(
+        "--prepare-segmentation-only",
+        action="store_true",
+        help="Salva solo foto e mappe semantiche, senza caricare Stable Diffusion.",
+    )
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
-    if args.prepare_canny_only and args.condition is not None:
-        parser.error("Usare --prepare-canny-only senza -canny o -none.")
-    config = load_experiment_config(root, condition=args.condition)
+    preparation_condition = (
+        "canny" if args.prepare_canny_only
+        else "segmentation" if args.prepare_segmentation_only else None
+    )
+    if preparation_condition is not None and args.condition is not None:
+        parser.error("Usare le opzioni --prepare-...-only senza flag di generazione.")
+    config = load_experiment_config(root, condition=preparation_condition or args.condition)
     input_dir = config["data"]["input_dir"]
     if not input_dir.is_dir():
         raise FileNotFoundError(f"Cartella input non trovata: {input_dir}")
@@ -75,7 +90,7 @@ def main() -> None:
         "input_image": str(image_path),
         "preprocessing_enabled": not args.no_preprocess,
         "input_size": image.size,
-        "mode": "prepare_canny_only" if args.prepare_canny_only else "generation",
+        "mode": f"prepare_{preparation_condition}_only" if preparation_condition else "generation",
     }
     (run_dir / "run_config.json").write_text(
         json.dumps(snapshot, indent=2, ensure_ascii=False, default=str),
@@ -87,6 +102,9 @@ def main() -> None:
     conditions = config["experiment"]["conditions"]
     canny_image = None
     map_path = None
+    condition_images = {}
+    map_paths = {}
+    labels_path = None
     if args.prepare_canny_only or "canny" in conditions:
         canny_parameters = config["preprocessing"]["canny"]
         canny_image = extract_canny(image, **canny_parameters)
@@ -94,8 +112,39 @@ def main() -> None:
         map_dir.mkdir(parents=True, exist_ok=True)
         map_path = map_dir / f"{image_path.stem}.png"
         canny_image.save(map_path)
+        condition_images["canny"] = canny_image
+        map_paths["canny"] = map_path
         print(f"Mappa Canny salvata: {map_path}")
-    if args.prepare_canny_only:
+
+    if "segmentation" in conditions:
+        # Import e caricamento del segmentatore solo quando viene richiesto.
+        from src.preprocessing.semantic import SemanticSegmentor
+
+        segmentation_config = config["preprocessing"]["segmentation"]
+        print(f"Caricamento segmentatore: {segmentation_config['model_id']}")
+        segmentor = SemanticSegmentor(
+            model_name=segmentation_config["model_id"],
+            device=config["model"]["device"],
+        )
+        try:
+            labels = segmentor.process_labels(image)
+            segmentation_image = segmentor.colorize_labels(labels)
+            segmentation_dir = run_dir / "maps" / "segmentation"
+            segmentation_dir.mkdir(parents=True, exist_ok=True)
+            segmentation_path = segmentation_dir / f"{image_path.stem}.png"
+            labels_path = segmentation_dir / f"{image_path.stem}_labels.png"
+            segmentation_image.save(segmentation_path)
+            Image.fromarray(labels).save(labels_path)
+            condition_images["segmentation"] = segmentation_image
+            map_paths["segmentation"] = segmentation_path
+            print(f"Mappa semantica salvata: {segmentation_path}")
+        finally:
+            del segmentor
+            gc.collect()
+            if torch.device(config["model"]["device"]).type == "cuda":
+                torch.cuda.empty_cache()
+
+    if preparation_condition is not None:
         return
 
     model = config["model"]
@@ -103,9 +152,9 @@ def main() -> None:
         for condition in conditions:
             checkpoint = config["controlnets"][condition] if condition != "none" else None
             control_kwargs = {}
-            if condition == "canny":
+            if condition != "none":
                 control_kwargs = {
-                    "condition_image": canny_image,
+                    "condition_image": condition_images[condition],
                     "controlnet_conditioning_scale": config["controlnet"]["conditioning_scale"],
                 }
             print(f"Caricamento pipeline: {condition}")
@@ -134,8 +183,10 @@ def main() -> None:
                             "input_size": image.size,
                             "controlnet_checkpoint": checkpoint,
                             "controlnet_conditioning_scale": control_kwargs.get("controlnet_conditioning_scale"),
-                            "condition_image_path": str(map_path) if condition == "canny" else None,
+                            "condition_image_path": str(map_paths[condition]) if condition != "none" else None,
                             "canny_parameters": config["preprocessing"]["canny"] if condition == "canny" else None,
+                            "segmentation_parameters": config["preprocessing"]["segmentation"] if condition == "segmentation" else None,
+                            "segmentation_labels_path": str(labels_path) if condition == "segmentation" else None,
                             "output_path": str(output_path),
                             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
                         }
