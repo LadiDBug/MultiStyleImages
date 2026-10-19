@@ -10,13 +10,13 @@ dtype = "float16"
 [generation]
 height = 512
 width = 512
-steps = 30
+steps = 50
 
 #permette di amplificare l'influenza del condizionamento testuale
 # sulla generazione. Più è alta più spinge il modello verso
 # caratteristiche compatibili con il prompt
 guidance_scale = 7.5
-strength = 0.85
+strength = 0.8
 
 # Forza del vincolo strutturale, usata solo nei rami ControlNet.
 # Valore iniziale da validare nel pilot.
