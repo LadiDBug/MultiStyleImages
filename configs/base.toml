@@ -16,7 +16,7 @@ steps = 50
 # sulla generazione. Più è alta più spinge il modello verso
 # caratteristiche compatibili con il prompt
 guidance_scale = 7.5
-strength = 0.8
+strength = 0.65
 
 # Forza del vincolo strutturale, usata solo nei rami ControlNet.
 # Valore iniziale da validare nel pilot.
