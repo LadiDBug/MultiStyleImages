@@ -1,4 +1,4 @@
-"""Runner iniziale: una fotografia, tutti gli stili e seed configurati."""
+"""Runner RQ1: tutte le fotografie in raw e nelle sue sottocartelle."""
 
 import argparse
 import gc
@@ -96,14 +96,37 @@ def main() -> None:
 
     extensions = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
     images = sorted(
-        path for path in input_dir.iterdir()
+        path for path in input_dir.rglob("*")
         if path.is_file() and path.suffix.lower() in extensions
     )
     if not images:
         raise ValueError(f"Nessuna fotografia trovata in: {input_dir}")
 
-    # Prima prova: solo la prima foto in ordine alfabetico.
-    image_path = images[0]
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
+    batch_dir = config["data"]["output_dir"] / run_id
+    batch_dir.mkdir(parents=True, exist_ok=False)
+    manifest = {
+        **config,
+        "input_images": [str(image.relative_to(input_dir)) for image in images],
+        "preprocessing_enabled": not args.no_preprocess,
+        "mode": f"prepare_{preparation_condition}_only" if preparation_condition else "generation",
+    }
+    (batch_dir / "run_config.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False, default=str), encoding="utf-8"
+    )
+    print(f"Trovate {len(images)} fotografie in {input_dir}")
+    for index, image_path in enumerate(images, start=1):
+        relative_path = image_path.relative_to(input_dir)
+        # Mantiene sottocartelle ed estensione: foto.jpg e foto.png non collidono.
+        image_run_dir = batch_dir / "samples" / relative_path
+        image_run_dir.mkdir(parents=True, exist_ok=False)
+        print(f"\nFoto {index}/{len(images)}: {relative_path}")
+        _run_image(config, args, preparation_condition, image_path, image_run_dir, relative_path)
+    print(f"Test completo terminato: {batch_dir}")
+
+
+def _run_image(config, args, preparation_condition, image_path, run_dir, relative_path):
+    """Esegue le condizioni della singola foto nella sua cartella dedicata."""
     parameters = config["generation"]
     if args.no_preprocess:
         with Image.open(image_path) as source:
@@ -114,9 +137,6 @@ def main() -> None:
         )
     print(f"Foto selezionata: {image_path}")
 
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
-    run_dir = config["data"]["output_dir"] / run_id
-    run_dir.mkdir(parents=True, exist_ok=False)
     snapshot = {
         **config,
         "input_image": str(image_path),
@@ -231,7 +251,7 @@ def main() -> None:
                     for seed in config["experiment"]["seeds"]:
                         output_path = output_dir / f"{image_path.stem}_seed{seed}.png"
                         record = {
-                            "image_id": image_path.name,
+                            "image_id": relative_path.as_posix(),
                             "input_path": str(image_path),
                             "style": style,
                             "condition": condition,
