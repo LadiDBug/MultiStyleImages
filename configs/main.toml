@@ -4,7 +4,7 @@
 
 [experiment]
 name = "rq1_none_vs_canny"
-styles = ["gta5", "cyberpunk", "pixel_art"]
+styles = ["gta5", "pixel_art", "watercolor", "comics"]
 
 # Confronto tra baseline img2img e ControlNet Canny.
 conditions = ["none", "canny", "depth", "segmentation"]
