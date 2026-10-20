@@ -19,6 +19,14 @@ from src.preprocessing.canny import extract_canny
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--prompt",
+        help="Prompt personalizzato: esegue un solo stile 'custom' senza modificare i TOML.",
+    )
+    parser.add_argument(
+        "--negative-prompt",
+        help="Negative prompt per --prompt; se omesso usa una stringa vuota.",
+    )
     condition_group = parser.add_mutually_exclusive_group()
     condition_group.add_argument(
         "-canny", "--canny", dest="condition", action="store_const", const="canny",
@@ -67,7 +75,21 @@ def main() -> None:
     )
     if preparation_condition is not None and args.condition is not None:
         parser.error("Usare le opzioni --prepare-...-only senza flag di generazione.")
+    if args.prompt is not None and not args.prompt.strip():
+        parser.error("--prompt non puo' essere vuoto.")
+    if args.negative_prompt is not None and args.prompt is None:
+        parser.error("--negative-prompt richiede --prompt.")
+    if preparation_condition is not None and args.prompt is not None:
+        parser.error("--prompt si usa per generare, non con --prepare-...-only.")
     config = load_experiment_config(root, condition=preparation_condition or args.condition)
+    if args.prompt is not None:
+        config["experiment"]["styles"] = ["custom"]
+        config["styles"] = {
+            "custom": {
+                "prompt": args.prompt,
+                "negative_prompt": args.negative_prompt if args.negative_prompt is not None else "",
+            }
+        }
     input_dir = config["data"]["input_dir"]
     if not input_dir.is_dir():
         raise FileNotFoundError(f"Cartella input non trovata: {input_dir}")
