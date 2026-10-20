@@ -7,7 +7,7 @@ name = "rq1_none_vs_canny"
 styles = ["gta5", "cyberpunk", "pixel_art"]
 
 # Confronto tra baseline img2img e ControlNet Canny.
-conditions = ["none", "canny"]
+conditions = ["none", "canny", "depth", "segmentation"]
 
 # Stesso seed per confrontare le condizioni sui tre stili.
 seeds = [42]
