@@ -6,17 +6,21 @@
 
 
 [styles.gta5]
-prompt = "A mountain lake surrounded by dense forest, rocky peaks, and reflections in the water. GTA V in-game open-world rendering, not illustrated loading-screen artwork: sunlit natural colors, warm golden light, crisp game textures, realistic materials and atmospheric haze. Keep natural surfaces non-emissive."
+prompt = "GTA V in-game open-world rendering, not illustrated loading-screen artwork: sunlit natural colors, warm golden light, crisp game textures, realistic materials and atmospheric haze. Keep natural surfaces non-emissive. Apply these to existing surfaces."
 negative_prompt = "blurry, distorted, watermark, signature"
 # negative_prompt = ""
 
-[styles.cyberpunk]
-# Target attuale: estetica cyberpunk generale.
-prompt = "A mountain lake surrounded by dense forest, rocky peaks, and reflections in the water. Futuristic cyberpunk rendering: high tech, low life, neon glow, cyan and magenta accents, deep violet shadows, emissive edge lighting and high contrast. Apply these to existing surfaces."
-negative_prompt = "blurry, distorted, watermark, signature, text"
+[styles.pixel_art]
+prompt = "Pixel art rendering: 16-bit video game style, limited palette, blocky shapes, dithering, and pixel-level detail. Apply these to existing surfaces."
+negative_prompt = "blurry, watermark, signature"
 # negative_prompt = ""
 
-[styles.pixel_art]
-prompt = "A mountain lake surrounded by dense forest, rocky peaks, and reflections in the water. Pixel art rendering: 8-bit or 16-bit video game style, limited palette, blocky shapes, dithering, and pixel-level detail. Apply these to existing surfaces."
-negative_prompt = "blurry, watermark, signature"
+[styles.watercolor]
+prompt = "Detailed representational watercolor painting, transparent layered washes on textured paper, clearly defined main shapes, delicate dry-brush details, visible pigment granulation, soft edges in distant areas, crisp focal details, natural color relationships, coherent perspective, hand-painted appearance. Apply these to existing surfaces." 
+negative_prompt = "photograph, photorealistic, 3d render, glossy surfaces, oil painting, thick impasto, vector illustration, heavy black outlines, neon colors, text, watermark, signature"
+# negative_prompt = ""
+
+[styles.comics]
+prompt = "Scene in comic book illustration style, bold black outlines, vibrant colors, detailed cel shading, rich textures, highly detailed environments, graphic novel aesthetic, dramatic lighting, sharp details, strong visual contrast. Apply these to existing surfaces."
+negative_prompt = "blurry, low quality, distorted objects, extra objects, missing details, text, speech bubbles, comic panels, watermarks, artifacts"
 # negative_prompt = ""
