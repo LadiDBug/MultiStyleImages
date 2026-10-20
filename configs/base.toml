@@ -15,15 +15,14 @@ steps = 50
 #permette di amplificare l'influenza del condizionamento testuale
 # sulla generazione. Più è alta più spinge il modello verso
 # caratteristiche compatibili con il prompt
-guidance_scale = 7.5
-strength = 0.55
-# 0.65 vecchio
+guidance_scale = 9.0
+strength = 0.65
 
 # Forza del vincolo strutturale, usata solo nei rami ControlNet.
 # Valore iniziale da validare nel pilot.
 [controlnet]
-conditioning_scale = 0.5
-# 0.8 vecchio
+conditioning_scale = 0.8
+
 
 # Estrazione dei bordi dalla foto gia' preparata per img2img.
 # Valori iniziali da validare osservando la mappa prodotta.
