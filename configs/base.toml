@@ -27,7 +27,7 @@ conditioning_scale = 0.8
 # Estrazione dei bordi dalla foto gia' preparata per img2img.
 # Valori iniziali da validare osservando la mappa prodotta.
 [preprocessing.canny]
-low_threshold = 50
+low_threshold = 100
 high_threshold = 200
 
 # UperNet crea la mappa semantica dalla foto scelta dal runner.
