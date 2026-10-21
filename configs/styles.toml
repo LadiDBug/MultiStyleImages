@@ -19,8 +19,3 @@ negative_prompt = "blurry, watermark, signature"
 prompt = "Detailed representational watercolor painting, transparent layered washes on textured paper, clearly defined main shapes, delicate dry-brush details, visible pigment granulation, soft edges in distant areas, crisp focal details, natural color relationships, coherent perspective, hand-painted appearance. Apply these to existing surfaces." 
 negative_prompt = "photograph, photorealistic, 3d render, glossy surfaces, oil painting, thick impasto, vector illustration, heavy black outlines, neon colors, text, watermark, signature"
 # negative_prompt = ""
-
-[styles.comics]
-prompt = "Scene in comic book illustration style, bold black outlines, vibrant colors, detailed cel shading, rich textures, highly detailed environments, graphic novel aesthetic, dramatic lighting, sharp details, strong visual contrast. Apply these to existing surfaces."
-negative_prompt = "blurry, low quality, distorted objects, extra objects, missing details, text, speech bubbles, comic panels, watermarks, artifacts"
-# negative_prompt = ""
