@@ -15,7 +15,7 @@ steps = 50
 #permette di amplificare l'influenza del condizionamento testuale
 # sulla generazione. Più è alta più spinge il modello verso
 # caratteristiche compatibili con il prompt
-guidance_scale = 8.0
+guidance_scale = 6.0
 strength = 0.5
 
 # Forza del vincolo strutturale, usata solo nei rami ControlNet.
