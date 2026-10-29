@@ -10,9 +10,11 @@ styles = ["gta5", "pixel_art", "watercolor"]
 conditions = ["none", "canny", "depth", "segmentation"]
 
 # Stesso seed per confrontare le condizioni sui tre stili.
-seeds = [42]
+# 42, 123
+
+seeds = [123]
 
 # Percorsi relativi alla radice del repository.
 [data]
-input_dir = "data/prova_eval"
+input_dir = "data/test_images"
 output_dir = "outputs/"

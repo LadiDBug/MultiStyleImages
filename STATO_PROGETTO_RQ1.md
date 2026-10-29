@@ -2,8 +2,8 @@
 
 > **Aggiornato al:** 29 ottobre 2026.  
 > **Scopo:** conservare il contesto necessario per riprendere il progetto, distinguendo implementazione, prove disponibili e lavoro ancora da svolgere.  
-> **Snapshot del repository:** branch `conditioning-ablation`, base commit `593d702` (`add placeholder files for RQ2`), più implementazione evaluation nella working tree non ancora committata.  
-> **Fonti:** codice, configurazioni, cronologia Git, artefatti locali e aggiornamenti dell'utente. Verifiche offline dell'evaluation eseguite; nessuna nuova generazione o valutazione con pesi preaddestrati eseguita in questa sessione.
+> **Snapshot del repository:** branch `conditioning-ablation`, HEAD `09948b4`; stesso commit registrato nell'evaluation reale su Kaggle.
+> **Fonti:** codice, configurazioni, cronologia Git, aggiornamenti dell'utente e risultati Kaggle scaricati in `evaluation_firstTry/`. Prima evaluation reale completata su `olanda.png`; analisi dei file effettuata localmente, senza rieseguire le metriche.
 
 ## 1. Da dove ripartiamo
 
@@ -11,9 +11,9 @@ Il progetto dispone di una pipeline modulare per confrontare **Stable Diffusion 
 
 La configurazione attuale seleziona **GTA V, Pixel Art e Watercolor**. La strategia stilistica implementata è basata sui prompt: il loader corrente non carica LoRA.
 
-**La RQ1 non è ancora conclusa scientificamente.** L'evaluation è ora implementata e verificata con test offline: audit del run, CLIP-I, CLIP-T, consistenza semantica con SegFormer, similarità visiva DINOv2 (`dino_i`), CSV, aggregazione per input e confronti appaiati con `none`. Non sono ancora disponibili metriche su output reali. La guida completa è [EVALUATION_RQ1.md](EVALUATION_RQ1.md).
+**La parte tecnica ha superato una prima prova end-to-end reale.** Su Kaggle sono state generate le 12 combinazioni di `olanda.png` (tre stili, quattro condizioni, seed 42, senza preprocessing fotografico esplicito) e calcolate tutte e quattro le metriche con i checkpoint preaddestrati. Audit: 12 output pronti, 0 non validi; evaluation: 12 successi e 3 blocchi completi. Gli artefatti sono in [evaluation_firstTry/20261029T134635_359265Z](evaluation_firstTry/20261029T134635_359265Z/). Completata anche l'ispezione visiva esplorativa dell'originale e di tutti i 12 output, distinta da una valutazione umana cieca. La RQ1 non è ancora conclusa scientificamente: riconoscibilità degli stili da consolidare, benchmark completo, analisi aggregata e report ancora da completare. La guida tecnica è [EVALUATION_RQ1.md](EVALUATION_RQ1.md).
 
-**Aggiornamento dell'utente:** le foto sono state caricate in `raw` ed è in corso su Kaggle la generazione per tutti gli stili, senza preprocessing fotografico (`--no-preprocess`). La configurazione effettiva e la completezza del run verranno verificate sui file scaricati; non è stata effettuata un'ispezione diretta della sessione Kaggle. Il TOML locale punta ancora a `data/test_images`, mentre qui i dati sono in `data/raw`: questa differenza locale non dimostra un problema nel run Kaggle. La prossima azione è completare/scaricare il run ed eseguire l'audit, poi un primo calcolo delle metriche.
+**Prossima azione concreta, concordata a fine giornata:** recuperare/verificare il run sulle **108 foto**, eseguire prima l'audit e poi l'evaluation con le quattro metriche, quindi iniziare tabelle, analisi e scrittura della parte RQ1. Non cambiare ora prompt, parametri o metriche e non rigenerare automaticamente il batch: l'utente riferisce circa 15 ore per un seed e il completamento del run grande non è ancora attestato dai file locali. La scarsa riconoscibilità di Pixel Art e i limiti stilistici osservati nel pilot devono essere dichiarati e verificati su altri esempi, senza occultarli. Dopo RQ1, passare a RQ2 con una LoRA Watercolor e confronto dei rank. `configs/main.toml` locale punta a `data/prova_eval`: è l'input della prova singola, non del benchmark completo. Il valutatore legge il manifest del run indicato in `--run-dir`, non questo percorso TOML.
 
 ## 2. Research question e obiettivo scientifico
 
@@ -79,7 +79,7 @@ Nel percorso standard il runner estrae tutte le mappe dalla **stessa fotografia 
 
 `src/preprocessing/canny.py` converte la foto RGB in scala di grigi e applica OpenCV Canny. Restituisce un'immagine RGB con bordi bianchi su sfondo nero, con le stesse dimensioni della foto.
 
-Le soglie sono configurabili. Esiste la modalità `--prepare-canny-only`, che salva input e mappa senza caricare Stable Diffusion. In `outputs/` sono presenti mappe Canny e configurazioni storiche: questa è la prova locale più concreta del lavoro di preprocessing già svolto.
+Le soglie sono configurabili. Esiste la modalità `--prepare-canny-only`, che salva input e mappa senza caricare Stable Diffusion. Oltre alle mappe storiche in `outputs/`, la prova Kaggle del 29 ottobre attesta il completamento del ramo Canny su una foto; ispezione visiva della mappa e dell'output ancora da documentare.
 
 ### 3.5 Segmentazione semantica
 
@@ -155,7 +155,7 @@ Questi sono **valori correnti, non parametri dimostrati ottimali**:
 | Stili | `gta5`, `pixel_art`, `watercolor` |
 | Condizioni | `none`, `canny`, `depth`, `segmentation` |
 | Seed | `[42]` |
-| Input configurato | `data/test_images` — assente localmente |
+| Input configurato | `data/prova_eval` — prova su una fotografia; tornare a `data/raw` per il dataset completo |
 | Output configurato | `outputs/` |
 | Nome esperimento | `rq1_none_vs_canny` — non descrive più tutte le condizioni |
 
@@ -173,26 +173,25 @@ Le configurazioni watercolor/LoRA riguardano il lavoro preparatorio per RQ2 e no
 
 ### Artefatti presenti
 
-In `outputs/` risultano sei directory di run del **15 ottobre 2026**, con fotografie preprocessate e `run_config.json`; quattro contengono anche una mappa Canny. Non risultano immagini generate nelle sottocartelle `images/`, JSONL di generazione o metriche.
+Nello snapshot iniziale, `outputs/` conteneva soltanto prove del 15 ottobre, senza metriche finali. **Aggiornamento:** in `evaluation_firstTry/` sono ora disponibili gli artefatti della prova reale Kaggle su `olanda.png`: cartella `20261029T134520_300187Z` con il solo audit e cartella `20261029T134635_359265Z` con audit e evaluation completa. Il run di generazione associato è `20261029T133513_530561Z`. I CSV attestano 12 output valutati; le immagini originali/generate non sono contenute nei CSV e la loro verifica visiva resta un'attività separata.
 
 Le configurazioni storiche differiscono da quelle correnti: per esempio usavano anche Cyberpunk, 30 step e altri valori di strength/soglie. Non vanno interpretate come output del protocollo attuale. La mancanza di risultati locali non esclude esecuzioni su Kaggle o altre macchine: tali prove vanno recuperate e associate alle rispettive configurazioni prima di usarle nel report.
 
 | Area | Stato verificabile |
 |---|---|
 | Architettura modulare e TOML | Implementati |
-| Baseline img2img | Implementata; validazione end-to-end da documentare |
-| Canny | Implementato; mappe locali presenti |
-| Depth e Segmentation | Implementati; nessun relativo artefatto locale trovato |
-| Runner 4 condizioni × 3 stili | Implementato; run Kaggle in corso riferito dall'utente, senza preprocessing; configurazione effettiva da acquisire |
-| Tracciamento per generazione | Implementato; nessun record locale trovato |
+| Baseline img2img | Eseguita e valutata su `olanda.png`, nei tre stili |
+| Canny, Depth e Segmentation | Eseguiti e valutati sulla stessa foto; verifica visiva ancora da documentare |
+| Runner 4 condizioni × 3 stili | Prova reale completata: 12 output, seed 42, senza preprocessing fotografico esplicito |
+| Tracciamento per generazione | Audit reale completo: tutti i 12 record richiesti superano i controlli |
 | Dataset test e validation congelati | Non documentati con manifest |
 | Evaluation RQ1 | Implementata in `content.py`, `style.py`, `dino.py`, `records.py`, `evaluate.py`; protocollo in `configs/evaluation.toml`, guida in `EVALUATION_RQ1.md` |
-| Verifica evaluation | Test offline di formule, audit, aggregazione e forward con piccoli modelli casuali; pesi preaddestrati ancora da verificare |
+| Verifica evaluation | 16 test offline documentati; quattro metriche reali riuscite sui 12 output Kaggle |
 | Evaluation RQ2 | `lora_eval.py` rimane vuoto; fuori dall'attuale lavoro |
-| Metriche e conclusioni RQ1 | Non disponibili localmente |
+| Metriche e conclusioni RQ1 | CSV reali disponibili per una foto; nessuna conclusione generale ancora giustificata |
 | RQ2 | File preparatori presenti; non necessaria per completare RQ1 |
 
-**Non è ancora giustificato affermare quale conditioning preservi meglio contenuto o stile.**
+**Si possono descrivere i risultati della singola foto; non è ancora giustificato affermare quale conditioning sia generalmente migliore.**
 
 ## 6. Disallineamenti e limiti da tenere presenti
 
@@ -210,9 +209,9 @@ Le configurazioni storiche differiscono da quelle correnti: per esempio usavano 
 ### Passo 1 — Rendere coerente il punto di partenza
 
 - [ ] Confermare gli stili finali: la proposta coerente con i TOML attuali è GTA V, Pixel Art, Watercolor.
-- [ ] Impostare un input esistente in `configs/main.toml`; per il primo test usare una cartella dedicata con una sola fotografia, senza spostare gli originali.
+- [x] Impostare l'input di prova: `data/prova_eval` su Kaggle, con `olanda.png`; configurazione acquisita nel manifest reale.
 - [ ] Rinominare l'esperimento, per esempio `rq1_structural_conditioning`.
-- [ ] Verificare Python 3.11+, dipendenze effettive e disponibilità CUDA nell'ambiente che eseguirà i test.
+- [x] Verificare operativamente l'ambiente: generazione ed evaluation reale su CUDA completate; versioni dei valutatori registrate in `evaluation_config.json`.
 - [ ] Allineare README e riferimenti alla CLI corrente, distinguendo prototipo e motore img2img.
 
 **Completato quando:** configurazione, input e ambiente sono coerenti e i comandi disponibili sono documentati correttamente.
@@ -228,8 +227,9 @@ Le configurazioni storiche differiscono da quelle correnti: per esempio usavano 
 
 ### Passo 3 — Smoke test end-to-end e pilot stilistico
 
-- [ ] Generare su una foto le quattro condizioni per i tre stili: **12 output**, seed 42 e parametri correnti come punto di partenza.
-- [ ] Verificare immagini salvate, metadati `success`, assenza di output anomali e coerenza del confronto.
+- [x] Generare su una foto le quattro condizioni per i tre stili: **12 output**, seed 42, run `20261029T133513_530561Z`, senza preprocessing fotografico esplicito.
+- [x] Verificare presenza/leggibilità, metadati e coerenza tecnica: audit 12 pronti, 0 non validi.
+- [ ] Verificare visivamente originali/output e mappe: riconoscibilità dello stile, oggetti, posizione e artefatti. L'audit non sostituisce questo controllo.
 - [ ] Ripetere una configurazione nello stesso ambiente per verificare la riproducibilità osservata.
 - [ ] Misurare durata totale e memoria disponibile prima di aumentare il numero di immagini.
 - [ ] Estendere a un piccolo validation set separato dal futuro test, per verificare riconoscibilità dello stile e qualità del controllo.
@@ -248,11 +248,15 @@ La priorità è validare il percorso **prompt-only già implementato**. Se uno s
 
 Un primo seed è sufficiente per il debug; per lo studio valutare più seed compatibilmente con il budget. Il costo è `N immagini × 4 condizioni × 3 stili × S seed`: ad esempio **50 immagini × 12 × 3 = 1.800 output**, come scenario di pianificazione, non esecuzione già avvenuta.
 
+**Pianificazione discussa con l'utente:** per 108 fotografie e seed 42 sono attesi 1.296 output; l'utente riferisce circa 15 ore di generazione. Tre seed sull'intero dataset porterebbero a 3.888 output e circa 45 ore, a tempi proporzionali. Proposta ancora da confermare: confronto principale su 108 foto con un seed e controllo di stabilità su un sottoinsieme di 15–20 foto scelto prima dell'analisi, con altri due seed. Non sono esperimenti già eseguiti. Run separati richiedono un'unione verificata: l'orchestratore attuale valuta un run alla volta.
+
+**Categorie:** i dati non sono organizzati in categorie equilibrate; l'utente stima circa tre foto di animali. Mantenere come analisi principale la media globale con uguale peso per foto (`category=__all__`), senza pesi aggiuntivi per categoria. Eventuali categorie servono a un'analisi esplorativa, riportando sempre le numerosità. Non spostare immagini o modificare gli ID dei run già generati. La composizione sbilanciata limita la generalizzazione e va dichiarata.
+
 **Completato quando:** si può elencare esattamente cosa generare senza prendere nuove decisioni guardando i risultati del test.
 
 ### Passo 5 — Implementare l'evaluation separata
 
-**Codice implementato il 29 ottobre 2026; esecuzione sugli output reali ancora da fare.** `src/evaluation/content.py`, `style.py`, `dino.py`, `records.py` ed `evaluate.py` leggono il run esistente senza rigenerare immagini. Il protocollo è in `configs/evaluation.toml`:
+**Codice implementato e prima esecuzione reale completata il 29 ottobre 2026.** `src/evaluation/content.py`, `style.py`, `dino.py`, `records.py` ed `evaluate.py` leggono il run esistente senza rigenerare immagini. Su `olanda.png` tutte e quattro le metriche sono state calcolate per tutti i 12 output. Il protocollo è in `configs/evaluation.toml`:
 
 | Dimensione | Misura proposta | Cautela interpretativa |
 |---|---|---|
@@ -272,9 +276,9 @@ Edge F1 con tolleranza e correlazione/ranking depth sono estensioni utili, succe
 - [x] Implementare intervalli bootstrap per input (2.000 ricampionamenti, seed 2026); con un solo input non stimarli.
 - [x] Configurare checkpoint e testi di evaluation separati dalla generazione.
 - [ ] Congelare revisioni immutabili dei valutatori e confermare definitivamente i testi prima del confronto finale (inizialmente revision `main`).
-- [ ] Verificare caricamento dei checkpoint preaddestrati e produrre i primi CSV reali.
+- [x] Verificare caricamento dei checkpoint preaddestrati e produrre i primi CSV reali: eseguito su Kaggle, artefatti in `evaluation_firstTry/20261029T134635_359265Z/`.
 
-**Completato quando:** una piccola cartella di output produce CSV per immagine e riepiloghi verificabili senza nuova generazione.
+**Milestone tecnica raggiunta:** una piccola cartella di output ha prodotto CSV per immagine e riepiloghi verificabili senza nuova generazione. Rimangono verifica visiva, valutazione del dataset completo e analisi scientifica.
 
 La modalità `--audit-only` controlla la completezza senza caricare i modelli. I percorsi assoluti Kaggle vengono ricostruiti dalla struttura locale del run; non serve modificare i JSON dopo il trasferimento. L'audit confronta manifest, parametri, record e geometrie; il default blocca il calcolo se mancano output. `--allow-partial` è esplicito e i riepiloghi escludono comunque i blocchi incompleti. Ogni invocazione crea una nuova evaluation; non esiste ripresa automatica. Vedere la guida per comandi e dettagli.
 
@@ -337,7 +341,26 @@ Non usare i flag della vecchia CLI del README senza verificarli: il runner attua
 - **Interpretazione:** DINO-I confronta rappresentazioni visive; serve a verificare se i risultati sul contenuto concordano con CLIP-I. Non è una misura pura del contenuto né una percentuale, e i valori assoluti non sono calibrati rispetto a CLIP-I. Rimangono da verificare il caricamento dei pesi reali e il costo GPU.
 - **Prossima azione:** audit del run Kaggle e primo calcolo delle quattro metriche; congelare le revisioni dei modelli prima del confronto definitivo.
 
+### Aggiornamento del 29 ottobre 2026 — Prima prova reale e lettura dei risultati
+
+Questa voce aggiorna e supera le indicazioni precedenti «checkpoint non caricati» e «nessun CSV reale»; le voci precedenti documentano lo stato al momento dell'implementazione.
+
+- **Run generazione:** `20261029T133513_530561Z`; input `olanda.png`, 1217×694; output 1216×688, quattro condizioni × tre stili × seed 42. `--no-preprocess`, 50 step configurati, CFG 7,5, strength 0,5, ControlNet scale 0,8, scheduler PNDM.
+- **Artefatti verificati:** `evaluation_firstTry/20261029T134635_359265Z/`, letti insieme all'utente file per file: audit, riepiloghi, punteggi individuali, differenze appaiate, configurazione, valutatori e manifest. Nessuna immagine è stata ispezionata visivamente durante questa lettura dei CSV.
+- **Esito:** audit 12 attesi/pronti e 0 non validi; metriche 12 successi, 3 blocchi foto/stile/seed completi e 12 output nei riepiloghi. Sono state eseguite CLIP-I, CLIP-T, mIoU e DINO-I con pesi preaddestrati.
+- **Ambiente evaluation Kaggle:** Torch 2.11.0+cu128, Transformers 5.16.1, Pillow 12.3.0, NumPy 2.1.3, huggingface-hub 1.29.0; CUDA; commit `09948b473e10971eefc0456d890f3bae8e9c3f3c`.
+- **Revisioni risolte:** CLIP `3d74acf9a28c67741b2f4f2ea7635f0aaf6f0268`; SegFormer `de01bae28967510f9ddd496c60a969357195400c`; DINOv2 `f9e44c814b77203eaa57a6bdbbd535f21ede1415`. Sono documentate in `evaluators.json`; i TOML richiedono ancora `main`.
+- **Osservazioni sulla sola foto:** Canny ha DINO-I massimo nei tre stili e anche CLIP-I e mIoU massimi in GTA V e Pixel Art; Watercolor favorisce Segmentation su mIoU e CLIP-I. CLIP-T massimo: Depth in GTA V, `none` in Pixel Art e Canny in Watercolor. In Watercolor, Canny supera `none` su tutte e quattro le metriche. Non sono conclusioni generalizzabili né una selezione definitiva del metodo.
+- **Limiti interpretativi:** con una sola foto non si stimano deviazione standard fra input e bootstrap; campi vuoti corretti. I gruppi `__all__` e `unassigned` coincidono, senza duplicare gli input nella stessa media. CLIP usa crop centrale 224×224 dopo resize lato corto 224; DINO crop 224×224 dopo resize lato corto 256. SegFormer ridimensiona a 512×512 e i logits sono riportati sulla griglia comune 512×292. Questi preprocessori sono attivi anche se il preprocessing fotografico di generazione è disattivato.
+- **Ordine delle prossime attività:** (1) confronto visivo della foto e dei 12 output, (2) conferma del protocollo e identificazione di pilot/test, (3) recupero/completamento e audit delle 1.296 generazioni del dataset se confermate, (4) evaluation completa, (5) grafici e griglie, analisi e report, con eventuale controllo su più seed compatibile con il budget. Nessun nuovo modulo o metrica necessario per il prossimo passo.
+
 Per mantenere utile questo documento, aggiungere una voce solo quando esiste un cambiamento o una prova concreta:
+
+**Confronto visivo GTA V, 29 ottobre:** ricevuto `generated_images(12).zip` ed estratto, senza modificare gli originali, in `outputs/confronto_olanda_20261029/`. Verificati gli hash dei 12 output rispetto al CSV: tutti corrispondono. Ispezionati soltanto originale e quattro output GTA V. Canny mantiene meglio ponte, tenda a strisce, fila di biciclette, ringhiera e disposizione dei tavoli; restano deformazioni di dettagli e persone. `none` e Depth alterano maggiormente biciclette, ringhiere, facciate e vegetazione; Segmentation mantiene il contesto del canale ma perde buona parte della ringhiera e altera i dettagli. L'ordine qualitativo di preservazione è compatibile con i maggiori CLIP-I/DINO-I/mIoU di Canny per GTA V. Tutti gli output presentano texture artificiali e distorsioni; il CLIP-T maggiore di Depth non dimostra da solo una resa GTA V visivamente migliore. Osservazioni esplorative dell'assistente su un solo input/seed, non valutazione umana cieca. Pixel Art e Watercolor ancora da ispezionare visivamente; nessun cambiamento a codice o parametri.
+
+**Confronto visivo Pixel Art, 29 ottobre:** ispezionati originale e quattro output in `outputs/confronto_olanda_20261029/samples/olanda.png/images/pixel_art/`. Tutti mantengono una resa dettagliata vicina alla fotografia/illustrazione con texture granulari; non emerge chiaramente una griglia di pixel regolare, una palette limitata o una semplificazione coerente da videogioco 16-bit. Canny conserva meglio ponte, tenda centrale a strisce, ringhiera, biciclette e persone ai tavoli; ciò è coerente con i massimi CLIP-I (0,956), DINO-I (0,867) e mIoU (0,316). Negli altri rami diversi dettagli sono reinventati: ringhiera decorata, tronco sostituito da elemento simile a un lampione, biciclette e arredi alterati. CLIP-T massimo di `none` (0,200 contro 0,195 Canny) non certifica riuscita Pixel Art e la differenza è piccola, senza evidenza di stabilità. Un alto punteggio di contenuto può accompagnare una stilizzazione debole. Osservazione esplorativa dell'assistente su una sola foto/seed; finire Watercolor e discutere la validità stilistica del pilot prima di modificare o congelare parametri. Nessun cambiamento a codice, prompt o configurazioni.
+
+**Confronto visivo Watercolor, 29 ottobre:** ispezionati originale e tutti e quattro gli output Watercolor. `none` presenta superfici e contorni pittorici ma reinventa vegetazione lungo il bordo del canale, biciclette e ringhiera; Depth conserva l'impianto generale ma mantiene diverse reinvenzioni, inclusa la tenda centrale senza strisce. Canny conserva meglio ponte, tenda a strisce, fila delle biciclette, ringhiera e persone ai tavoli, pur con distorsioni. Segmentation conserva le grandi regioni ma altera gli oggetti minuti e perde tratti della ringhiera. Watercolor appare più chiaramente pittorico del corrispondente Pixel Art, senza garantire una resa ad acquerello pienamente convincente o una separazione netta fra i tre target. I punteggi della singola foto: Canny massimo CLIP-T (0,271) e DINO-I (0,832), Segmentation massimo CLIP-I (0,938) e mIoU (0,264). Il massimo CLIP-I di Segmentation non implica migliore preservazione di ogni oggetto: l'ispezione locale favorisce Canny su diversi dettagli. Non possiamo attribuire le differenze di ranking a una causa certa dai soli punteggi aggregati. Risultati visivi e metriche sostengono Canny come candidato interessante nel pilot, senza eleggerlo vincitore generale. Ora tutti i 12 output sono stati ispezionati. Nessun cambiamento a codice, prompt o parametri; prossimo passo: discutere/validare riconoscibilità stilistica prima del protocollo definitivo.
 
 ```text
 Data:
@@ -354,4 +377,33 @@ Prossima azione concreta:
 
 ### Prompt per una nuova sessione
 
-> Leggi `STATO_PROGETTO_RQ1.md` e `EVALUATION_RQ1.md`, verificando cambiamenti del codice rispetto allo snapshot. Prosegui con RQ1: SD 1.5 img2img, condizioni `none`, `canny`, `depth`, `segmentation`; stili GTA V, Pixel Art, Watercolor; nessuna LoRA nel loader corrente. L'utente ha avviato Kaggle per tutti gli stili senza preprocessing. L'evaluation ora include audit, CLIP-I, CLIP-T, mIoU con SegFormer diverso dall'UPerNet del conditioning e DINO-I (`dino_i`, coseno dei CLS di `facebook/dinov2-base`), CSV e confronti appaiati con bootstrap per input. I 16 test offline passano, ma mancano caricamento dei pesi preaddestrati e metriche reali sugli output Kaggle. Localmente raw contiene 108 immagini; la matrice effettiva farà fede sul manifest Kaggle. Acquisisci il run, esegui prima l'audit e poi l'evaluation, conservando configurazioni e aggiornando questa memoria. Procedi per piccoli passi spiegabili, senza introdurre altre metriche o file non necessari. Non presentare test sintetici come risultati scientifici e mantieni RQ2 separata.
+> Leggi `STATO_PROGETTO_RQ1.md`, soprattutto la sezione «Chiusura del 29 ottobre 2026», e `EVALUATION_RQ1.md`. Abbiamo completato generazione/evaluation reale su `olanda.png`: 12 output, tre stili (GTA V, Pixel Art, Watercolor), quattro condizioni (`none`, `canny`, `depth`, `segmentation`), seed 42, senza preprocessing fotografico esplicito. Audit ed evaluation tutti riusciti; metriche CLIP-I, CLIP-T, mIoU SegFormer e DINO-I. CSV/JSON in `evaluation_firstTry/20261029T134635_359265Z/`; immagini in `outputs/confronto_olanda_20261029/`. Abbiamo letto tutti i file e ispezionato tutti i 12 output: Canny preserva diversi dettagli, ma la riuscita stilistica è limitata, soprattutto Pixel Art. Nessuna conclusione generale da una foto. Decisione finale: evaluation del run completo sulle 108 foto e scrittura della parte RQ1, poi RQ2 LoRA solo Watercolor, pilota rank 8 e confronto rank 4/8/16/32 a training controllato. Non avviare LoRA prima di chiudere l'analisi RQ1. Riparti verificando cartella, manifest e stato del run completo: 1.296 output attesi se 108 foto × 3 stili × 4 condizioni × 1 seed sono confermati. Non rigenerare automaticamente: costo riferito circa 15 ore. Usa media globale a pari peso per foto, senza pesi per categorie sbilanciate. Più seed su un sottoinsieme sono soltanto una proposta da confermare. Non cambiare codice o protocollo senza richiesta. L'utente preferisce piccoli passi spiegati uno alla volta; aggiorna questa memoria man mano.
+
+### Chiusura del 29 ottobre 2026 — Punto di ripartenza
+
+Questa è la decisione più recente e prevale sulle precedenti indicazioni operative nel diario.
+
+**Completato e verificato:**
+
+- Implementazione evaluation con CLIP-I, CLIP-T, mIoU SegFormer e DINO-I; ultima suite documentata: 16 test offline passati.
+- Prova end-to-end Kaggle su una fotografia: tutti e 12 gli output generati, validi e valutati; tre blocchi completi.
+- Lettura guidata di tutti i nove file della evaluation completa: audit e riepilogo, manifest, configurazione, valutatori, punteggi individuali, medie e differenze dalla baseline.
+- Ispezione visiva esplorativa dell'originale e dei 12 output, stile per stile. Nessun nuovo parametro selezionato sulla base dei risultati; nessuna valutazione umana cieca ancora effettuata.
+- Confermati i percorsi locali: `evaluation_firstTry/20261029T134635_359265Z/` per CSV/JSON; `outputs/confronto_olanda_20261029/` per run completo estratto. ZIP sorgente ricevuto: `C:/Users/Ladybug/Downloads/generated_images(12).zip`. Gli hash dei 12 output estratti corrispondono al CSV.
+
+**Decisioni più recenti:**
+
+1. Completare l'evaluation sulle 108 foto e scrivere la parte RQ1 sul confronto fra conditioning, dichiarando il limite di fedeltà stilistica della strategia prompt-only. Le conclusioni dovranno dipendere dai dati completi, non dalla sola foto del pilot.
+2. Non aggiungere altre metriche o modificare ora la pipeline. Usare analisi globale con uguale peso per fotografia; categorie eventualmente esplorative, senza pesi aggiuntivi (circa tre esempi animali secondo l'utente).
+3. Dopo l'analisi RQ1, RQ2 su un solo stile, **Watercolor**: verificare prima un pilota LoRA rank 8, poi confronto no-LoRA e rank 4/8/16/32 su stesso dataset/split e conditioning fisso. Dataset finale, budget di training e conditioning RQ2 ancora da fissare. Non variare contemporaneamente rank e strategia di training nel confronto principale; variazione della durata di training eventualmente successiva. La LoRA è un'ipotesi da verificare per la fedeltà stilistica, non una garanzia di qualità estetica.
+4. Un seed per il confronto principale è il piano attuale; tre seed sull'intero dataset non sono stati decisi. Proposta futura: 15–20 foto selezionate con criteri espliciti e altri due seed per stabilità, compatibilmente con il budget.
+
+**Da fare all'apertura della prossima sessione, una cosa alla volta:**
+
+1. Identificare la directory del run completo su Kaggle e verificarne il `run_config.json`: non confonderlo con la prova `20261029T133513_530561Z`. Il completamento delle 108 foto non è ancora verificato qui.
+2. Eseguire `python -m src.evaluation.evaluate --run-dir "outputs/<RUN_COMPLETO>" --audit-only`. Attesi 1.296 output e 0 non validi se il manifest conferma 108 input, tre stili, quattro condizioni e seed 42. Se incompleto, capire cosa manca prima di lanciare nuove generazioni.
+3. Se audit completo, eseguire `python -m src.evaluation.evaluate --run-dir "outputs/<RUN_COMPLETO>" --device cuda`. Ogni invocazione crea una cartella timestamp di evaluation; non serve spostare le immagini, serve indicare il run giusto.
+4. Conservare l'intero run e i risultati; leggere prima conteggi/errori, poi tabella globale `category=__all__`, confronti appaiati e campione visivo vario. Se `olanda.png` è inclusa nel benchmark, dichiarare che è già stata usata come pilot/ispezione e mantenere trasparente l'uso dei dati.
+5. Preparare tabelle/grafici e testo RQ1 solo dopo i risultati completi; discutere limiti, un solo seed, composizione del dataset e riuscita stilistica. Nessuna scrittura del paper completata finora.
+
+**Preferenza di lavoro:** l'utente chiede spiegazioni graduali e un file/attività alla volta; evitare nuove strutture e modifiche multiple non necessarie. Questa chiusura aggiorna soltanto la documentazione, senza eseguire generazioni, metriche o training.
