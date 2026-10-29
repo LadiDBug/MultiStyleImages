@@ -1,0 +1,38 @@
+# Protocollo RQ1
+
+#clip_i -> somiglianza del contenuto globale
+#clip_t -> valuta l'allineamento allo stile
+#semantic_miou valuta la conservazione del layout semantico 
+#dino_i -> similarita' visiva originale/output, complementare a CLIP-I
+[evaluation]
+device = "auto"
+metrics = ["clip_i", "clip_t", "semantic_miou", "dino_i"]
+
+# stesso clip. con clip_i confrontiamo tra i vettori delle due img, con clip_t confrontiamo ta il vettore di output e quello del testo dello stile
+[clip]
+model_id = "openai/clip-vit-base-patch32"
+revision = "main"
+
+
+# DINOv2 ViT-B/14: coseno tra i token CLS globali, senza confronto testuale.
+[dino]
+model_id = "facebook/dinov2-base"
+revision = "main"
+
+
+#segformer assegna una classe semantica a ogni pixel. Si segmentano entrambe le foto e si confrontano le mappe ottenute. 
+[semantic]
+# Valutatore diverso da UPerNet usato nel conditioning; stesse 150 classi ADE20K.
+model_id = "nvidia/segformer-b2-finetuned-ade-512-512"
+revision = "main"
+num_classes = 150
+# Griglia comune per input/output, rapporto d'aspetto dell'input conservato.
+long_edge = 512
+
+# Testi di valutazione distinti dai lunghi prompt di generazione.
+# Una cosine similarity, non una probabilita' o percentuale di stile.
+# usiamo una descrizione diversa dal prompt originale per far si che si concentri sulle caratteristiche dello stile. 
+[style_texts]
+gta5 = "An in-game screenshot from Grand Theft Auto V, with realistic 3D video game rendering."
+pixel_art = "A pixel art image in a 16-bit video game style, with a limited color palette and visible square pixels."
+watercolor = "A watercolor painting on textured paper, with transparent washes and visible pigment granulation."

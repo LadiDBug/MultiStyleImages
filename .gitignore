@@ -26,3 +26,4 @@ outputs/
 .cache/
 data/processed/
 data/references/
+data/raw/*

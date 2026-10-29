@@ -1,5 +1,11 @@
 # MultiStyleImages
 
+Per lo stato aggiornato della RQ1 vedere [STATO_PROGETTO_RQ1.md](STATO_PROGETTO_RQ1.md).
+L'evaluation separata (audit, CLIP-I, CLIP-T, consistenza semantica) e i comandi
+attuali sono descritti in [EVALUATION_RQ1.md](EVALUATION_RQ1.md).
+Le istruzioni M1 sottostanti descrivono una versione precedente del runner;
+per la CLI di generazione corrente usare `python main.py --help`.
+
 ## Baseline RQ1: Stable Diffusion 1.5 img2img (M1)
 
 Il nuovo entry point usa `condition = "none"`: foto RGB + prompt, senza
