@@ -192,19 +192,6 @@ Questa verifica riguarda file, firma dati e integrita numerica; non dimostra
 superiorita stilistica o preservazione del contenuto. Non sono state eseguite
 nuove generazioni o aggiornamenti dei pesi per redigere questo documento.
 
-### Rank 8 precedente: pilota storico, altro dataset
-
-La cronologia documenta un training rank 8 a 1000 step e una coppia di
-inferenza su una fotografia di paesaggio. Quel training usava la prima
-selezione da 400 immagini, con 80 ritratti Multi-Style, prima delle revisioni.
-**Stesso numero di immagini non significa stessi dati:** il pilota non puo
-essere trattato come rank 8 del confronto sul dataset attuale. Il nuovo
-rank 8 disponibile e stato verificato sulla selezione corrente. I vecchi artefatti e script citati
-nella cronologia non sono tutti presenti nel checkout attuale.
-
-Per i quattro rank correnti sono stati verificati artefatti completi,
-non soltanto la presenza dei config.
-
 ## 6. Valutazione e lavoro restante
 
 L'evaluator esistente calcola CLIP-I, CLIP-T, mIoU con **SegFormer** e DINO-I
