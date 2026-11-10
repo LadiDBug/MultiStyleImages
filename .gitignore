@@ -13,6 +13,7 @@ __pycache__/
 test_segmentation_output.png
 test_pipeline_output.png
 *.png
+*.jpg
 
 # Pesi dei modelli pesanti o LoRA scaricati localmente (opzionale)
 loras/*.safetensors
