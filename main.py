@@ -1,8 +1,10 @@
-"""Runner RQ1: tutte le fotografie in raw e nelle sue sottocartelle."""
+"""Runner img2img RQ1/RQ2: fotografie nelle sottocartelle, LoRA opzionale."""
 
 import argparse
 import gc
+import hashlib
 import json
+import math
 import torch
 from PIL import Image
 from datetime import datetime, timezone
@@ -10,15 +12,72 @@ from pathlib import Path
 from time import perf_counter
 
 from src.utils.config import load_experiment_config
-from src.generation.pipeline import load_pipeline
-from src.generation.generator import generate
-from src.preprocessing.img_preprocess import preprocess_image
-from src.preprocessing.canny import extract_canny
+from src.utils.lora_config import load_lora_config, training_arguments
+
+ROOT = Path(__file__).resolve().parent
 
 
+def _configure_lora(config, path, scale):
+    """Aggiunge i riferimenti LoRA soltanto se richiesti esplicitamente."""
+    if path is None:
+        if scale is not None:
+            raise ValueError("--lora-scale richiede --lora-path.")
+        return
+    scale = 1.0 if scale is None else scale
+    if not math.isfinite(scale) or scale < 0:
+        raise ValueError("--lora-scale deve essere finita e non negativa.")
+    if len(config["experiment"]["styles"]) != 1:
+        raise ValueError(
+            "Con --lora-path selezionare un solo stile in configs/main.toml "
+            "(per questa LoRA: styles = ['pixel_art'])."
+        )
+    path = Path(path).expanduser().resolve()
+    weights = path/"pytorch_lora_weights.safetensors" if path.is_dir() else path
+    if not weights.is_file() or weights.suffix != ".safetensors":
+        raise ValueError(f"Pesi LoRA .safetensors non trovati: {weights}")
+    # Per gli export del nostro trainer, recupera rank e revisione immutabile.
+    training_path = weights.parent/"run_config.json"
+    if not training_path.is_file() and weights.parent.name.startswith("checkpoint-"):
+        training_path = weights.parent.parent/"run_config.json"
+    training = json.loads(training_path.read_text(encoding="utf-8")) if training_path.is_file() else {}
+    trained = training.get("config", {})
+    if trained.get("model_id") and trained["model_id"] != config["model"]["id"]:
+        raise ValueError("La LoRA e' stata addestrata con un backbone diverso da model.id.")
+    revision = training.get("resolved_revision")
+    if revision:
+        config["model"] = {**config["model"], "revision": revision}
+    config["lora"] = {
+        "path": str(weights),
+        "sha256": hashlib.sha256(weights.read_bytes()).hexdigest(),
+        "scale": float(scale),
+        "rank": trained.get("rank"),
+        "alpha": trained.get("alpha"),
+        "base_model_revision": revision,
+        "training_signature": training.get("signature"),
+    }
 
-def main() -> None:
+
+def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", nargs="?", choices=["train", "inference"],
+                        help="train con --lora CONFIG; inference oppure nessun comando per generare.")
+    lora_group = parser.add_mutually_exclusive_group()
+    lora_group.add_argument("--lora", type=Path,
+                           help="Config LoRA in configs/, per esempio lora_rank4.toml.")
+    lora_group.add_argument(
+        "--lora-path", type=Path,
+        help="Directory LoRA o file .safetensors locale; se omesso esegue come prima senza adattatore.",
+    )
+    parser.add_argument(
+        "--lora-scale", type=float,
+        help="Intensita' dell'adattatore (default 1.0); richiede --lora oppure --lora-path.",
+    )
+    parser.add_argument("--print-config", action="store_true",
+                        help="Stampa la configurazione effettiva senza eseguire il run.")
+    parser.add_argument("--check-data", action="store_true", help="Solo train: verifica il dataset senza addestrare.")
+    parser.add_argument("--resume-from-checkpoint", help="Solo train: latest oppure percorso di un checkpoint.")
+    parser.add_argument("--dataset-dir", type=Path,
+                        help="Solo train: sostituisce il percorso del dataset per il run, senza modificare il TOML.")
     parser.add_argument(
         "--prompt",
         help="Prompt personalizzato: esegue un solo stile 'custom' senza modificare i TOML.",
@@ -66,13 +125,39 @@ def main() -> None:
         action="store_true",
         help="Salva solo foto e mappa depth, senza caricare Stable Diffusion.",
     )
-    args = parser.parse_args()
-    root = Path(__file__).resolve().parent
+    args = parser.parse_args(argv)
+    root = ROOT
     preparation_condition = (
         "canny" if args.prepare_canny_only
         else "segmentation" if args.prepare_segmentation_only
         else "depth" if args.prepare_depth_only else None
     )
+    if args.lora is not None and args.command is None:
+        parser.error("Con --lora specificare train oppure inference.")
+    if args.command == "train":
+        if args.lora is None:
+            parser.error("train richiede --lora CONFIG.toml.")
+        if (preparation_condition or args.condition or args.prompt is not None
+                or args.negative_prompt is not None or args.no_preprocess or args.lora_scale is not None):
+            parser.error("I flag di generazione e preprocessing non si usano con train.")
+        try:
+            _, lora_config = load_lora_config(root, args.lora)
+            if args.dataset_dir is not None:
+                lora_config["data"]["input_dir"] = str(args.dataset_dir.expanduser().resolve())
+            train_args = training_arguments(root, lora_config)
+        except (ValueError, TypeError, OSError, KeyError) as error:
+            parser.error(str(error))
+        for flag in ("print_config", "check_data"):
+            if getattr(args, flag):
+                train_args.append("--" + flag.replace("_", "-"))
+        if args.resume_from_checkpoint:
+            train_args.extend(["--resume-from-checkpoint", args.resume_from_checkpoint])
+        from src.training_lora.train import main as train_main
+
+        train_main(train_args)
+        return
+    if args.check_data or args.resume_from_checkpoint or args.dataset_dir is not None:
+        parser.error("--check-data, --dataset-dir e --resume-from-checkpoint si usano soltanto con train.")
     if preparation_condition is not None and args.condition is not None:
         parser.error("Usare le opzioni --prepare-...-only senza flag di generazione.")
     if args.prompt is not None and not args.prompt.strip():
@@ -81,7 +166,18 @@ def main() -> None:
         parser.error("--negative-prompt richiede --prompt.")
     if preparation_condition is not None and args.prompt is not None:
         parser.error("--prompt si usa per generare, non con --prepare-...-only.")
-    config = load_experiment_config(root, condition=preparation_condition or args.condition)
+    if preparation_condition is not None and (args.lora is not None or args.lora_path is not None or args.lora_scale is not None):
+        parser.error("Le opzioni LoRA si usano per generare, non con --prepare-...-only.")
+    lora_config = None
+    try:
+        if args.lora is not None:
+            lora_config_path, lora_config = load_lora_config(root, args.lora)
+        config = load_experiment_config(
+            root, condition=preparation_condition or args.condition,
+            experiment_overrides=lora_config["experiment"] if lora_config else None,
+        )
+    except (ValueError, TypeError, OSError, KeyError) as error:
+        parser.error(str(error))
     if args.prompt is not None:
         config["experiment"]["styles"] = ["custom"]
         config["styles"] = {
@@ -90,6 +186,20 @@ def main() -> None:
                 "negative_prompt": args.negative_prompt if args.negative_prompt is not None else "",
             }
         }
+    try:
+        lora_path = root / lora_config["data"]["output_dir"] if lora_config else args.lora_path
+        _configure_lora(config, lora_path, args.lora_scale)
+        if lora_config:
+            for parameter in ("rank", "alpha"):
+                actual = config["lora"][parameter]
+                if actual is not None and actual != lora_config["parameters"][parameter]:
+                    raise ValueError(f"I pesi LoRA non corrispondono a parameters.{parameter} del TOML selezionato.")
+            config["lora"]["config_path"] = str(lora_config_path)
+    except (ValueError, OSError) as error:
+        parser.error(str(error))
+    if args.print_config:
+        print(json.dumps(config, indent=2, ensure_ascii=False, default=str))
+        return
     input_dir = config["data"]["input_dir"]
     if not input_dir.is_dir():
         raise FileNotFoundError(f"Cartella input non trovata: {input_dir}")
@@ -127,6 +237,8 @@ def main() -> None:
 
 def _run_image(config, args, preparation_condition, image_path, run_dir, relative_path):
     """Esegue le condizioni della singola foto nella sua cartella dedicata."""
+    from src.preprocessing.img_preprocess import preprocess_image
+
     parameters = config["generation"]
     if args.no_preprocess:
         with Image.open(image_path) as source:
@@ -159,6 +271,8 @@ def _run_image(config, args, preparation_condition, image_path, run_dir, relativ
     labels_path = None
     depth_values_path = None
     if args.prepare_canny_only or "canny" in conditions:
+        from src.preprocessing.canny import extract_canny
+
         canny_parameters = config["preprocessing"]["canny"]
         canny_image = extract_canny(image, **canny_parameters)
         map_dir = run_dir / "maps" / "canny"
@@ -228,7 +342,15 @@ def _run_image(config, args, preparation_condition, image_path, run_dir, relativ
     if preparation_condition is not None:
         return
 
+    from src.generation.pipeline import load_pipeline
+    from src.generation.generator import generate
+
     model = config["model"]
+    lora_kwargs = {}
+    if "lora" in config:
+        lora_kwargs = {"lora_path": config["lora"]["path"], "lora_scale": config["lora"]["scale"]}
+        if config["lora"]["base_model_revision"]:
+            lora_kwargs["revision"] = config["lora"]["base_model_revision"]
     with (run_dir / "metadata.jsonl").open("a", encoding="utf-8") as metadata:
         for condition in conditions:
             checkpoint = config["controlnets"][condition] if condition != "none" else None
@@ -242,6 +364,7 @@ def _run_image(config, args, preparation_condition, image_path, run_dir, relativ
             pipe = load_pipeline(
                 model_id=model["id"], device=model["device"], dtype=model["dtype"],
                 condition=condition, controlnet_id=checkpoint,
+                **lora_kwargs,
             )
             try:
                 for style in config["experiment"]["styles"]:
@@ -273,6 +396,7 @@ def _run_image(config, args, preparation_condition, image_path, run_dir, relativ
                             "depth_normalization": "per_image_minmax_0_255_near_white" if condition == "depth" else None,
                             "output_path": str(output_path),
                             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                            **({"lora": config["lora"]} if "lora" in config else {}),
                         }
                         started = perf_counter()
                         try:

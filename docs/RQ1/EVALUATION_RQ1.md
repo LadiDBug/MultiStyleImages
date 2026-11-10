@@ -175,3 +175,25 @@ Verifiche offline:
 5. Scrivere conclusioni e limiti, poi valutare più seed o un'ablation della control scale se necessaria.
 
 Grafici, griglie e valutazione umana sono passi successivi: questa implementazione produce audit, punteggi e tabelle, senza dichiarare la RQ1 completata.
+
+
+## 9. Riutilizzo delle metriche nella RQ2 Pixel Art
+
+Aggiornamento al 10 novembre 2026. Lo stile dei LoRA RQ2 e **Pixel Art**;
+Watercolor citato in questa guida rimane uno stile del benchmark RQ1.
+Il training e l'inferenza RQ2 sono gia implementati: protocollo e stato in
+[RQ2_PIXEL_ART.md](../RQ2/RQ2_PIXEL_ART.md).
+
+L'evaluator puo calcolare le quattro metriche su un singolo run img2img RQ2,
+ma i riepiloghi esistenti aggregano per condizione all'interno di quel run.
+Se il run usa un LoRA, anche la condizione `none` usa lo stesso adattatore:
+`paired_vs_none.csv` confronta quindi ControlNet contro img2img con quel LoRA,
+non LoRA contro assenza di adattatore. Per confrontare off/4/8/16/32 servono
+run distinti e un'aggregazione appaiata fra foto, seed e condizione.
+
+L'aggregatore dedicato non e ancora implementato (`src/evaluation/lora_eval.py`
+e vuoto). Occorre verificare fra run firme dataset, revisione SD, parametri
+training e inferenza, pesi e scala LoRA. Il pilota rank 8 sul vecchio dataset
+non puo essere confrontato direttamente con il rank 4 sul dataset attuale.
+La loss di validation del trainer misura denoising e non sostituisce le
+metriche sulle immagini. CLIP-T non e una percentuale di successo stilistico.

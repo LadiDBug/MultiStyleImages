@@ -1,108 +1,221 @@
 # MultiStyleImages
 
-Per lo stato aggiornato della RQ1 vedere [STATO_PROGETTO_RQ1.md](STATO_PROGETTO_RQ1.md).
-L'evaluation separata (audit, CLIP-I, CLIP-T, consistenza semantica) e i comandi
-attuali sono descritti in [EVALUATION_RQ1.md](EVALUATION_RQ1.md).
-Le istruzioni M1 sottostanti descrivono una versione precedente del runner;
-per la CLI di generazione corrente usare `python main.py --help`.
+Progetto di trasferimento di stile da fotografie con Stable Diffusion 1.5
+img2img, ControlNet e adattatori LoRA Pixel Art.
 
-## Baseline RQ1: Stable Diffusion 1.5 img2img (M1)
+- **RQ1:** confronto fra `none`, `canny`, `depth` e `segmentation`, sugli stili
+  configurati e con seed controllati.
+- **RQ2:** training di LoRA Pixel Art a rank 4, 8, 16 e 32 e successiva inferenza
+  con lo stesso motore di generazione.
 
-Il nuovo entry point usa `condition = "none"`: foto RGB + prompt, senza
-ControlNet, segmentazione, LoRA o VAE aggiuntivi. Il caricamento segue
-la [API Diffusers img2img](https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/img2img).
-I file in `configs/` sono TOML; `base.toml` contiene modello e parametri,
-`styles.toml` i prompt. `models.toml` è riservato alla futura fase ControlNet.
+## Struttura attuale
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe main.py --dry-run
-.\.venv\Scripts\python.exe main.py
+```text
+MultiStyleImages/
+├── main.py                     # Entry point: generazione, training e inferenza LoRA
+├── README.md                   # Struttura e comandi attuali
+├── configs/
+│   ├── main.toml               # Foto, risultati ed esperimento di generazione RQ1
+│   ├── base.toml               # SD, device di inferenza, generazione e preprocessing
+│   ├── models.toml             # Checkpoint ControlNet
+│   ├── styles.toml             # Prompt e negative prompt degli stili
+│   ├── evaluation.toml         # Protocollo delle metriche
+│   ├── lora_rank4.toml         # Dataset, directory pesi e parametri rank 4
+│   ├── lora_rank8.toml
+│   ├── lora_rank16.toml
+│   └── lora_rank32.toml
+├── docs/
+│   ├── Resoconto_RQ1.md        # Sintesi RQ1: implementazione, prove e lavoro restante
+│   ├── Resoconto_RQ2.md        # Sintesi RQ2: dataset, quattro training e confronto
+│   ├── RQ1/                   # Evaluation, stato e riferimenti storici RQ1
+│   └── RQ2/                   # Protocollo LoRA, roadmap e architettura condivisa
+├── src/
+│   ├── generation/            # Caricamento SD/ControlNet/LoRA e generazione
+│   ├── preprocessing/         # Preparazione foto, Canny, depth e segmentazione
+│   ├── training_lora/         # Dataset immagini/caption e trainer LoRA
+│   ├── evaluation/            # Audit e metriche dei risultati
+│   └── utils/                 # Lettura e adattamento delle configurazioni
+├── data/
+│   ├── test_images/           # Fotografie di inferenza nel main.toml attuale
+│   └── pixel_art/             # train/, validation/ e Dataset_LoRA.md
+├── lora/                      # Pesi LoRA, checkpoint e log del training
+├── outputs/                   # Run di generazione, creati quando eseguiti
+├── tests/                     # Test offline
+└── requirements.txt
 ```
 
-Il default elabora una foto in `src/test_images`, stile cyberpunk, seed 42,
-30 step, guidance 7.5 e strength 0.65. Il primo avvio scarica SD 1.5 nella
-cache locale `.cache/huggingface`; serve accesso a Internet. `device = "auto"`
-sceglie CUDA se disponibile, altrimenti CPU (molto più lenta).
+Gli script del prototipo storico sono stati rimossi; il flusso corrente
+parte da `main.py`. Le directory degli artefatti vengono
+create o popolate dai rispettivi run; non tutte sono necessariamente presenti.
+La [descrizione del dataset](data/pixel_art/Dataset_LoRA.md) contiene fonti,
+criteri di selezione e inventario completo. In `data/pixel_art/` gli split
+contengono le immagini e i metadata; il documento Markdown non e letto dal trainer.
 
-```powershell
-.\.venv\Scripts\python.exe main.py --input-dir data/raw --style all --limit 0 --device cuda
+## Ambiente
+
+Usare Python **3.11 o successivo**. Dalla radice del progetto:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
 ```
 
-`--config`, `--styles-config`, `--output-dir`, `--seed`, `--style` e `--limit`
-permettono di selezionare un run. I percorsi nei TOML sono relativi alla
-radice del repository; quelli passati da CLI alla directory corrente.
-`--limit 0` elabora tutte le immagini della cartella, senza ricorsione.
+Il file requirements include tutte le dipendenze dirette del codice corrente:
+PyTorch, Diffusers, Transformers, Accelerate, PEFT, Hugging Face Hub,
+Safetensors, Packaging, NumPy, Pillow e OpenCV. Non servono comandi pip
+aggiuntivi per LoRA o Canny. Le dipendenze transitive sono risolte da pip.
+Le versioni di Diffusers, Transformers e PEFT sono fissate a quelle dei run
+verificati; gli altri intervalli rispettano i vincoli del trainer. Non e un
+lock completo dell'ambiente: le versioni effettive restano nei run_config.json.
 
-Il preprocessing minimo applica orientamento EXIF, conversione RGB e crop
-centrale con resize Lanczos a 512×512: evita deformazioni, ma taglia le parti
-periferiche delle foto panoramiche. Non applica miglioramenti di colore/contrasto.
-La stessa procedura dovrà essere mantenuta per il confronto con ControlNet.
+Usare una build PyTorch compatibile con CUDA o Apple Silicon; per versioni
+e combinazioni ufficiali vedere [PyTorch](https://pytorch.org/get-started/previous-versions/).
+Non sono richiesti xformers, bitsandbytes, timm, datasets o pyarrow per il
+codice corrente: il dataset viene letto da immagini e JSONL, non dai Parquet
+sorgenti. I modelli configurati usano le implementazioni native Transformers.
+Il progetto importa tomllib direttamente e richiede Python 3.11+: installare
+tomli non rende compatibili gli interpreti precedenti.
 
-Ogni run salva in `outputs/rq1/<timestamp>/`:
+Le dipendenze di generazione sono caricate quando necessarie: il training
+e --help non importano Canny. Il primo caricamento dei modelli richiede
+accesso a Hugging Face e spazio per la cache; i pesi non sono inclusi nei
+requirements. Non e stata eseguita una nuova installazione o un training
+per il riordino della documentazione.
 
-- `images/<style>/none/<image_id>_seed<seed>.png`;
-- `run_config.json`, con configurazione effettiva e input;
-- `metadata.jsonl`, con parametri, hash input, seed, tempi, versioni ed errori.
+Verifica dell'ambiente locale al 10 novembre: i requisiti diretti del file
+sono soddisfatti e i 16 test offline passano. `pip check` segnala pero un
+conflitto preesistente con `datasets 5.1.0`, che richiede Hugging Face Hub
+>=1.31, mentre il trainer richiede Hub <1. Il progetto non importa datasets:
+per eseguire anche quel pacchetto serve un ambiente separato compatibile.
+Per un'installazione nuova usare un virtualenv pulito; non sono stati
+rimossi o cambiati pacchetti nell'ambiente esistente.
 
-La revision predefinita `main` è mobile: per lo studio definitivo impostare
-un commit del modello in `model.revision`. Il seed è ripetibile nei limiti
-di hardware e versioni software; non garantisce uguaglianza tra CPU e GPU.
-Questa è M1: prompt da validare nel pilot, nessuna metrica o ripresa automatica.
+## Training LoRA dal main
 
-Gli script storici `src/run_baseline.py`, `src/pipeline.py` e
-`src/segmentation.py` restano disponibili. Usano segmentazione e ControlNet
-text-to-image: le istruzioni seguenti riguardano quel prototipo, non M1.
-Il nuovo motore riusabile è in `src/generation/`; il runner è `src/experiment.py`.
-Per il prototipo storico servono anche `opencv-python` e `tqdm`.
-
-### Eseguire il prototipo storico con ControlNet
-
-```powershell
-python src/run_baseline.py --input_dir src/test_images --output_dir results/baseline --seed 42 --steps 25
+```bash
+python3 main.py --lora lora_rank4.toml train
 ```
 
-Per una prova sulla prima immagine della cartella, in ordine alfabetico:
+Il nome semplice viene cercato in `configs/`. E accettato anche il percorso
+`configs/lora_rank4.toml` o un percorso assoluto. Per gli altri rank basta
+scegliere `lora_rank8.toml`, `lora_rank16.toml` o `lora_rank32.toml`.
 
-```powershell
-python src/run_baseline.py --input_dir src/test_images --output_dir results/test --num_samples 1 --seed 42 --steps 25
+| Campo nel config LoRA | Significato durante il training |
+|---|---|
+| `data.input_dir` | Directory dataset con `train/` e `validation/` |
+| `data.output_dir` | Directory dei pesi, checkpoint e log |
+| `parameters.rank`, `alpha`, `max_train_steps` | Parametri del trainer |
+| `experiment.seeds[0]` | Seed del training; `parameters.seed`, se presente, prevale |
+
+Gli altri parametri mantengono i default del trainer, oppure possono essere
+specificati nella sezione `[parameters]` con i nomi di `TrainingConfig`.
+Il modello base viene da `base.toml`. I percorsi nei TOML sono relativi alla
+radice del repository. Nessun config viene riscritto dal programma.
+
+I quattro TOML LoRA indicano `data/pixel_art`, che coincide con il dataset
+locale attuale. Il comando di training funziona quindi senza override del
+percorso. Se necessario, `--dataset-dir` consente di selezionarlo esplicitamente:
+
+```bash
+python3 main.py --lora lora_rank4.toml train --dataset-dir data/pixel_art
 ```
 
-Per scegliere una foto specifica, inserirla da sola in una cartella e
-passare quella cartella a `--input_dir`.
+Per stampare i parametri o controllare il dataset senza addestrare:
 
-Parametri disponibili:
-
-- `--num_samples`: numero massimo di immagini.
-- `--seed`: seed della generazione, default 42.
-- `--steps`: step di diffusione, default 25.
-- `--guidance_scale`: guidance del prompt, default 7.5.
-- `--control_scale`: intensità di ControlNet, default 1.0.
-- `--control_end`: frazione della generazione fino alla quale applicare ControlNet, default 0.85.
-
-### Eseguire solo la segmentazione
-
-```powershell
-python src/segmentation.py "src/test_images/paesaggio-1024x683.png"
+```bash
+python3 main.py --lora lora_rank4.toml train --print-config
+python3 main.py --lora lora_rank4.toml train --dataset-dir data/pixel_art --check-data
 ```
 
-Con preprocessing:
+Per riprendere un checkpoint compatibile nella stessa directory di output:
 
-```powershell
-python src/segmentation.py "src/test_images/paesaggio-1024x683.png" --preprocess
+```bash
+python3 main.py --lora lora_rank4.toml train --dataset-dir data/pixel_art --resume-from-checkpoint latest
 ```
 
-La mappa viene salvata accanto alla foto con suffisso `_seg_map.png`.
+L'output contiene `pytorch_lora_weights.safetensors`, `run_config.json`, log
+CSV, checkpoint e `training_summary.json` a completamento. Una directory
+non vuota non viene sovrascritta: serve un checkpoint compatibile per il resume.
+Il trainer seleziona automaticamente CUDA, MPS o CPU; l'implementazione attuale
+usa FP32 su MPS/CPU. Il trainer diretto `python3 -m src.training_lora.train`
+resta disponibile e la sua opzione `--config` usa lo schema TOML specifico
+descritto nel modulo, diverso dai config LoRA adattati dal main.
 
-## Risultati
+## Inferenza con il LoRA selezionato
 
-La baseline salva nella directory di output:
+Dopo aver completato il training:
 
-- immagini generate nelle cartelle `cyberpunk`, `gta_5` e `pixel_art`;
-- mappe semantiche nella cartella `segmentation_maps`;
-- parametri e tempi in `experiment_metadata.json`.
+```bash
+python3 main.py --lora lora_rank4.toml inference
+```
 
-Usare cartelle separate per input e output. La directory di input deve
-contenere solo fotografie da elaborare, perché anche le mappe PNG vengono
-considerate immagini di input.
+Il programma carica i pesi da `data.output_dir` del config LoRA e usa il suo
+`experiment` per stile, condizioni e seed. Le **fotografie** vengono invece
+da `data.input_dir` di `configs/main.toml`; i **risultati** vanno nel suo
+`data.output_dir`. Il dataset e la directory dei pesi non vengono usati come
+cartella di fotografie o come output delle immagini generate.
+
+Modello e parametri di generazione restano quelli di `base.toml`, checkpoint
+ControlNet quelli di `models.toml`, prompt quelli di `styles.toml`. Se il
+training registra una revisione immutabile del backbone, viene riutilizzata.
+Il device di inferenza resta quello di `base.toml` (attualmente `cuda`);
+la selezione automatica del trainer e separata da questa impostazione.
+
+Si possono usare i flag di generazione gia disponibili:
+
+```bash
+python3 main.py --lora lora_rank4.toml inference --canny --lora-scale 0.8
+```
+
+LoRA rank/alpha vengono confrontati con i metadati del training, se presenti.
+Con un adattatore deve essere selezionato un solo stile. `none` indica assenza
+di ControlNet: in questa modalita il LoRA rimane comunque attivo. Per il
+confronto senza LoRA occorre eseguire un run separato senza adattatore.
+
+## Generazione e comandi
+
+```bash
+python3 main.py
+python3 main.py --canny
+python3 main.py --prepare-canny-only
+python3 main.py --lora-path lora/pixel_art_rank_4 --lora-scale 1.0
+```
+
+Senza `--lora` e `--lora-path`, `main.py` usa l'esperimento originale in
+`configs/main.toml`, senza adattatore. Anche il precedente `--lora-path`
+rimane disponibile e richiede un solo stile nel config o un `--prompt`
+personalizzato. Tutte le opzioni sono elencate da `python3 main.py --help`.
+
+La generazione elabora ricorsivamente le fotografie e crea una cartella
+con timestamp sotto l'output configurato. Contiene `run_config.json` e,
+per ciascuna foto, immagine di input, mappe, output per stile/condizione/seed
+e `metadata.jsonl`. I riferimenti e l'hash dei pesi LoRA sono inclusi quando
+l'adattatore e attivo.
+
+## Valutazione e documentazione
+
+La valutazione e separata dal training e dalla generazione: istruzioni e
+comandi sono in [guida alla valutazione](docs/RQ1/EVALUATION_RQ1.md).
+Il [documento del dataset](data/pixel_art/Dataset_LoRA.md) elenca tutte le
+400 immagini con origine e formato; il trainer legge immagini e
+`metadata.jsonl` degli split, non la documentazione.
+Per confrontare i rank, mantenere fissi dataset, split e parametri di training.
+
+- [Resoconto RQ1](docs/Resoconto_RQ1.md)
+- [Resoconto RQ2](docs/Resoconto_RQ2.md)
+- [Protocollo e stato RQ2 Pixel Art](docs/RQ2/RQ2_PIXEL_ART.md)
+- [Diagrammi dell'architettura RQ1/RQ2](docs/RQ2/ARCHITETTURA.md)
+- [Stato e registro degli esperimenti](docs/RQ1/STATO_PROGETTO_RQ1.md)
+- [Roadmap RQ1/RQ2](docs/RQ2/ROADMAP_MultiStyleImages_RQ1_RQ2.md)
+- [Riferimento storico RQ1](docs/RQ1/RQ1_PROJECT_REFERENCE.md)
+- [README precedente](docs/RQ1/README_STORICO.md)
+
+Le parti storiche conservano decisioni e comandi delle versioni precedenti;
+per la CLI corrente fare riferimento a questo README e a `main.py --help`.
+
+Test offline, senza training o download di modelli:
+
+```bash
+python3 -m unittest discover -s tests -v
+```

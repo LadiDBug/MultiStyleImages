@@ -13,12 +13,15 @@ def load_experiment_config(
     project_root: str | Path | None = None,
     *,
     condition: str | None = None,
+    experiment_overrides: dict | None = None,
 ) -> dict:
     """Carica la configurazione img2img, senza caricare modelli.
 
     Restituisce model, generation, preprocessing, experiment, data e styles.
     Se sono richiesti canny, depth o segmentation, include controlnet e controlnets.
     condition, se specificata, sostituisce le condizioni del TOML per il run.
+    experiment_overrides applica l'esperimento LoRA senza cambiare i percorsi
+    fotografici di main.toml. Le stesse validazioni si applicano agli override.
     I percorsi in data sono oggetti Path assoluti; non vengono create cartelle.
     """
     root = (
@@ -31,7 +34,7 @@ def load_experiment_config(
     main = load_config(config_dir / "main.toml")
     styles = load_config(config_dir / "styles.toml")["styles"]
 
-    experiment = main["experiment"]
+    experiment = {**main["experiment"], **(experiment_overrides or {})}
     if condition is not None:
         experiment["conditions"] = [condition]
     selected_styles = experiment["styles"]

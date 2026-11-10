@@ -15,9 +15,6 @@ test_pipeline_output.png
 *.png
 *.jpg
 
-# Pesi dei modelli pesanti o LoRA scaricati localmente (opzionale)
-loras/*.safetensors
-
 # Configurazione VS Code e ambiente locale
 .vscode/
 .DS_Store
@@ -28,3 +25,8 @@ outputs/
 data/processed/
 data/references/
 data/raw/*
+
+
+data/pixel_art/train/
+data/pixel_art/validation/
+lora/pixel_*

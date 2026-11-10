@@ -2,7 +2,9 @@
 
 > **Scopo del documento:** riferimento persistente per riprendere il progetto in sessioni future, ricostruire le decisioni, evitare di cambiare inconsapevolmente protocollo sperimentale e guidare l'implementazione.
 >
-> **Stato:** piano di lavoro, non esperimenti già eseguiti. **Ultimo aggiornamento:** 13 ottobre 2026.
+> **Stato del corpo RQ1:** riferimento storico del 13 ottobre 2026, non descrizione della CLI corrente. Il piano originario menzionava Cyberpunk e YAML; gli esperimenti RQ1 correnti usano GTA V, Pixel Art e Watercolor e config TOML.
+>
+> **Aggiornamento RQ2 al 10 novembre 2026:** la fase e attiva e usa esclusivamente **LoRA Pixel Art**. Dataset pronto (400 immagini, 360/40), trainer e inferenza integrati nel main; tutti i rank 4/8/16/32 completati e verificati sul dataset corrente, distinti dal vecchio pilota rank 8. Riferimento operativo: [RQ2_PIXEL_ART.md](../RQ2/RQ2_PIXEL_ART.md).
 
 ## 0. Contesto e motivazione
 
@@ -16,7 +18,7 @@ Feedback del professore: l'assemblaggio di Stable Diffusion, ControlNet, prompt 
 
 Il progetto complessivo prevede:
 - **RQ1 (focus attuale):** tipo di condizionamento strutturale (nessuno, edges, depth, segmentation) in tre stili.
-- **RQ2 (fase successiva, fuori dallo scope implementativo attuale):** influenza del **rank LoRA** sul trade-off fra contenuto e stile.
+- **RQ2 (fase attiva, protocollo aggiornato separato):** influenza del **rank LoRA Pixel Art** sul trade-off fra contenuto e stile, con confronto off/4/8/16/32; vedere [RQ2_PIXEL_ART.md](../RQ2/RQ2_PIXEL_ART.md).
 
 ## 1. Research Question
 
@@ -281,7 +283,7 @@ Ogni generazione deve conservare: `image_id`, style, condition, seed, prompt/neg
 - La baseline è **SD img2img senza ControlNet**, non un modello custom.
 - Repository modulare, configurazioni esterne, riuso del motore di inferenza.
 - La valutazione separa content preservation e style fidelity.
-- RQ2 (rank LoRA) viene dopo e non si implementa adesso.
+- Il codice RQ2 e ora implementato separatamente: trainer `src/training_lora/`, main `--lora CONFIG train/inference`, LoRA Pixel Art soltanto sulla U-Net. Non cambiare il protocollo RQ1 per introdurre i confronti fra rank.
 
 ### Da definire / verificare
 
@@ -293,10 +295,16 @@ Ogni generazione deve conservare: `image_id`, style, condition, seed, prompt/neg
 6. Metriche esatte e protocollo human evaluation; possibilità di confound nei metric extractor.
 7. Numero di seed, budget Kaggle, strategia di aggregazione, eventuali analisi di sensitività su conditioning scale.
 
-## 12. Prompt breve per riprendere il progetto in una nuova chat
+## 12. Contesto aggiornato per riprendere il progetto
 
-> Sto lavorando alla RQ1 del mio progetto magistrale image-to-image: **“How do different structural conditioning methods (semantic segmentation, edge maps, and depth maps) affect content preservation and style fidelity across GTA V, Cyberpunk, and Pixel Art?”**. Ho 4 condizioni (`none`, Canny, Depth, Segmentation) × 3 stili. Baseline: **Stable Diffusion 1.5 img2img senza ControlNet**, con la stessa strategia stilistica delle altre condizioni. Voglio repo Python modulare (`configs`, `src/preprocessing`, `src/generation`, `src/evaluation`, `scripts`), esperimenti controllati, metadata/seed, Kaggle GPU. Sto lavorando nel branch `experiment/conditioning-ablation`. Riparti dalla milestone che ti indicherò. Non introdurre RQ2/rank LoRA prima che RQ1 sia stabile; le LoRA stilistiche fisse sono un'opzione da validare. Il documento completo è `RQ1_PROJECT_REFERENCE.md`.
-
----
-
-**Principio guida:** *una baseline semplice è desiderabile; il valore scientifico del progetto deriva da ipotesi, esperimenti rigorosi e valutazione riproducibile, non dalla complessità artificiale del codice.*
+Leggere prima [STATO_PROGETTO_RQ1.md](STATO_PROGETTO_RQ1.md) e
+[RQ2_PIXEL_ART.md](../RQ2/RQ2_PIXEL_ART.md), poi il README principale e
+[ARCHITETTURA.md](../RQ2/ARCHITETTURA.md). RQ1 e img2img senza LoRA, con GTA V,
+Pixel Art e Watercolor e quattro condizioni; l'utente riferisce run con
+seed 42/123/456, senza certificazione nuova degli aggregati in questo aggiornamento.
+RQ2 usa Pixel Art, dataset in data/pixel_art con split 360/40 e supporto in
+data/pixel_art/Dataset_LoRA.md. I quattro rank correnti sono completati; il
+vecchio pilota rank 8 su altra selezione non e confrontabile direttamente.
+Proseguire con inferenza e confronti appaiati; lora_eval.py e ancora vuoto.
+Il main e la CLI corrente sono nel README principale; i percorsi YAML e i
+pseudocodici del corpo storico sopra non sono comandi da eseguire oggi.

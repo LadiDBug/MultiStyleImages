@@ -42,7 +42,3 @@ def preprocess_image(
         method=Image.Resampling.LANCZOS,
         centering=(0.5, 0.5),
     )
-
-
-# TODO RQ1: estrarre le mappe dalla stessa foto preparata passata a img2img,
-# mantenendo allineati crop e dimensioni in tutte le condizioni.

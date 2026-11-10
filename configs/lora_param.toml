@@ -1,3 +1,0 @@
-# contiene i param per definire il confronto in inferenza
-# watercolor, conditioning fisso, stessi seed e foto, LoRA disattivata oppure rango 4/8/16/32.
-# Servirà anche estendere il loader per leggerlo.
