@@ -213,9 +213,3 @@ Per confrontare i rank, mantenere fissi dataset, split e parametri di training.
 
 Le parti storiche conservano decisioni e comandi delle versioni precedenti;
 per la CLI corrente fare riferimento a questo README e a `main.py --help`.
-
-Test offline, senza training o download di modelli:
-
-```bash
-python3 -m unittest discover -s tests -v
-```
