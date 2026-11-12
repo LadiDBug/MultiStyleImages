@@ -71,13 +71,3 @@ python -m demo.app
 # Con link pubblico temporaneo:
 python -m demo.app --share
 ```
-
-## Verifiche senza pesi o GPU
-
-```bash
-python -m unittest discover -s demo/tests -v
-```
-
-I test della galleria creano un dataset temporaneo con i sette esperimenti e verificano filtri, selezioni multiple, cartelle mancanti, percorsi portabili e corrispondenza degli originali. Non caricano modelli e non misurano la qualità delle generazioni. L'inferenza reale deve essere verificata eseguendo il notebook sul runtime CUDA.
-
-Riferimenti API: [Gradio Blocks e launch](https://www.gradio.app/docs/gradio/blocks), [coda Gradio](https://www.gradio.app/guides/queuing), [gestione della memoria Diffusers](https://huggingface.co/docs/diffusers/v0.35.1/en/optimization/memory).
