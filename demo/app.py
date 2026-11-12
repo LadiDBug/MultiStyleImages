@@ -4,6 +4,7 @@ import argparse
 import logging
 
 import gradio as gr
+import torch
 
 from demo.backend import DemoRuntime
 
@@ -30,6 +31,9 @@ def build_app(runtime):
             return runtime.run(image, condition, style, use_lora, rank, seed)
         except ValueError as exc:
             raise gr.Error(str(exc)) from exc
+        except torch.OutOfMemoryError as exc:
+            logging.exception("Memoria GPU esaurita durante la generazione")
+            raise gr.Error("Memoria GPU insufficiente per questa immagine e mappa. Prova una foto più piccola o la mappa Nessuna. La demo conserva le dimensioni originali della foto.") from exc
         except Exception as exc:
             logging.exception("Generazione demo fallita")
             raise gr.Error("Generazione fallita. Controlla il log nel notebook; verifica anche la memoria GPU.") from exc

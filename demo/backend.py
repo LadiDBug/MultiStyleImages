@@ -100,9 +100,11 @@ class DemoRuntime:
                     base, controlnet=controlnet)
                 pipe.enable_attention_slicing()
                 pipe.enable_vae_slicing()
+                pipe.enable_vae_tiling()
                 self.pipes[condition] = pipe
             base.enable_attention_slicing()
             base.enable_vae_slicing()
+            base.enable_vae_tiling()
             # CPU per i preprocessori: evita di tenere anche DPT/UperNet in VRAM.
             print("Caricamento preprocessori depth e segmentation su CPU…")
             prep = self.config["preprocessing"]
@@ -142,13 +144,19 @@ class DemoRuntime:
                 condition_image = self.preprocessors[condition].process(prepared)
             base = self.pipes["none"]
             pipe = self.pipes[condition]
+            use_offload = self.device.split(":")[0] == "cuda"
             try:
                 if use_lora:
                     base.enable_lora()
                     base.set_adapters([f"rank_{int(rank)}"], adapter_weights=[1.0])
                 elif self.lora_paths:
                     base.disable_lora()
-                pipe.to(self.device)
+                if use_offload:
+                    # Installa gli hook solo sulla pipeline attiva: UNet/VAE/text
+                    # encoder sono condivisi anche con le altre condizioni.
+                    pipe.enable_model_cpu_offload(device=self.device)
+                else:
+                    pipe.to(self.device)
                 output = generate(
                     pipe, prepared, self.styles[style]["prompt"],
                     self.styles[style]["negative_prompt"], int(seed), **generation,
@@ -157,9 +165,13 @@ class DemoRuntime:
                     controlnet_conditioning_scale=(self.config["controlnet"]["conditioning_scale"]
                                                    if condition != "none" else None))
             finally:
-                if self.lora_paths:
-                    base.disable_lora()
-                pipe.to("cpu")
+                try:
+                    if self.lora_paths:
+                        base.disable_lora()
+                finally:
+                    if use_offload:
+                        pipe.remove_all_hooks()
+                    pipe.to("cpu", silence_dtype_warnings=True)
             info = {"stile": style, "mappa": condition, "seed": int(seed),
                     "lora_rank": int(rank) if use_lora else None,
                     "secondi": round(perf_counter() - start, 2)}
