@@ -16,6 +16,33 @@ Apri `demo/MultiStyleImages_Demo.ipynb` in Colab o Jupyter con GPU CUDA ed esegu
 - Solo per Pixel art: LoRA opzionale e scelta del rank tra i checkpoint disponibili. Il rank identifica pesi già addestrati; non modifica il rank di una LoRA a inferenza.
 - Risultato scaricabile in PNG, anteprima della mappa utilizzata e dettagli di generazione con seed.
 
+## Esplora i test
+
+La pagina include una sezione per scegliere una foto di `our_ds`, vedere l'originale e confrontare i risultati già salvati. I filtri permettono di combinare esperimenti, stili e mappe; il selettore dei risultati permette di mostrarne uno, più di uno oppure tutti con **Mostra tutti i risultati filtrati**. Ogni immagine mostra esperimento, stile, mappa, seed e run. Cliccando una miniatura si apre l'anteprima ingrandita.
+
+Nel notebook configura **`TEST_IMAGE_PATHS`** per le foto e **`TEST_RESULT_PATHS`** per i sette esperimenti:
+
+```python
+TEST_IMAGE_PATHS = {'our_ds': 'our_ds'}
+TEST_RESULT_PATHS = {
+    'baseline_seed_42': 'outputs/baseline_seed_42',
+    'baseline_seed_123': 'outputs/baseline_seed_123',
+    'baseline_seed_456': 'outputs/baseline_seed_456',
+    'rank_4': 'outputs/rank_4',
+    'rank_8': 'outputs/rank_8',
+    'rank_16': 'outputs/rank_16',
+    'rank_32': 'outputs/rank_32',
+}
+```
+
+I percorsi relativi partono da `PROJECT_ROOT`; sono ammessi anche percorsi assoluti Kaggle o Drive. Per esempio, da `/kaggle/working/MultiStyleImages`, `../../input/datasets/<utente>/<dataset>/rank_4` indica una cartella nel dataset Kaggle. Le chiavi identificano gli esperimenti nel sito e i valori indicano le loro cartelle effettive. Puoi aggiungere altre voci senza modificare il sito.
+
+Il lettore riconosce la struttura `outputs/<run>/samples/<immagine>/images/<stile>/<mappa>/<nome>_seed<seed>.png`. Puoi indicare l'intera esportazione come quella in `outputs/rank_4`, la sua directory `outputs`, oppure un singolo run o la cartella `samples`. Le directory delle immagini di test possono contenere sottocartelle. L'associazione mantiene il percorso relativo dell'immagine; usa il solo nome file come alternativa soltanto quando non è ambiguo.
+
+Se manca `our_ds`, viene usata l'eventuale copia `input_original.png` salvata nel test. Le cartelle mancanti vengono segnalate nella pagina: puoi caricare solo parte dei dataset e continuare a usare il sito. I metadati con vecchi percorsi assoluti Kaggle non sono necessari: l'indice usa i file realmente presenti e non carica pesi né rigenera risultati. Per nuovi dataset o file, ricrea `test_gallery` e riavvia il sito con la cella di avvio.
+
+Il notebook passa a Gradio `allowed_paths=test_gallery.allowed_paths`: sono autorizzati solo i file immagine indicizzati, non l'intera esportazione contenente codice e checkpoint. Mantieni questo parametro anche in un avvio personalizzato per servire i dataset esterni alla cartella del progetto.
+
 ## Modelli e memoria
 
 Il sito si avvia senza modelli in memoria. Ogni pressione di **Genera** esegue questo ciclo, con una sola richiesta alla volta:
@@ -51,6 +78,6 @@ python -m demo.app --share
 python -m unittest discover -s demo/tests -v
 ```
 
-I test usano pipeline simulate per verificare instradamento, mappe e isolamento LoRA; non misurano qualità o compatibilità dei checkpoint. L'inferenza reale deve essere verificata eseguendo il notebook sul runtime CUDA.
+I test della galleria creano un dataset temporaneo con i sette esperimenti e verificano filtri, selezioni multiple, cartelle mancanti, percorsi portabili e corrispondenza degli originali. Non caricano modelli e non misurano la qualità delle generazioni. L'inferenza reale deve essere verificata eseguendo il notebook sul runtime CUDA.
 
 Riferimenti API: [Gradio Blocks e launch](https://www.gradio.app/docs/gradio/blocks), [coda Gradio](https://www.gradio.app/guides/queuing), [gestione della memoria Diffusers](https://huggingface.co/docs/diffusers/v0.35.1/en/optimization/memory).

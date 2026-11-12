@@ -7,6 +7,7 @@ import gradio as gr
 import torch
 
 from demo.backend import DemoRuntime
+from demo.test_gallery import MAP_LABELS, STYLE_LABELS, TestGallery
 
 CSS = """
 .gradio-container {max-width: 1280px !important;}
@@ -17,10 +18,22 @@ CSS = """
 """
 
 
-def build_app(runtime):
+def build_app(runtime, test_gallery=None):
     if not runtime.ready:
         raise ValueError("Inizializza la demo con runtime.load() prima di creare il sito.")
     ranks = list(runtime.lora_paths)
+    test_gallery = test_gallery if test_gallery is not None else TestGallery(runtime.root)
+
+    def result_options(image_id, experiments, styles, conditions, selected):
+        choices = test_gallery.choices(image_id, experiments, styles, conditions)
+        available = {key for _, key in choices}
+        kept = [key for key in (selected or []) if key in available]
+        selected = kept or ([choices[0][1]] if choices else [])
+        original, images, message = test_gallery.view(image_id, selected)
+        return gr.update(choices=choices, value=selected), original, images, message
+
+    def all_results(image_id, experiments, styles, conditions):
+        return gr.update(value=[key for _, key in test_gallery.choices(image_id, experiments, styles, conditions)])
 
     def lora_controls(style, enabled):
         visible = style == "pixel_art"
@@ -68,6 +81,46 @@ def build_app(runtime):
         button.click(generate, [image, condition, style, use_lora, rank, seed],
                      [output, map_output, details], concurrency_limit=1,
                      concurrency_id="gpu", api_name=False)
+        gr.Markdown("---\n## Esplora i test\nScegli una foto del dataset e confronta i risultati già generati. Puoi mostrare una singola variante, più varianti o tutte quelle disponibili.")
+        with gr.Accordion("Dataset e risultati disponibili", open=not bool(test_gallery.results)):
+            gr.Markdown(f"**{len(test_gallery.image_ids)} immagini · {len(test_gallery.results)} risultati · {len(test_gallery.experiments)} esperimenti**")
+            if test_gallery.warnings:
+                # Percorsi come testo semplice: i nomi dei dataset non sono markup.
+                gr.Textbox(value="\n".join(test_gallery.warnings), label="Cartelle da configurare nel notebook", interactive=False, lines=4)
+        first_image = test_gallery.image_ids[0] if test_gallery.image_ids else None
+        initial_choices = test_gallery.choices(first_image, test_gallery.experiments,
+                                               list(STYLE_LABELS), list(MAP_LABELS))
+        initial_selected = [initial_choices[0][1]] if initial_choices else []
+        original_value, gallery_value, message = test_gallery.view(first_image, initial_selected)
+        with gr.Row():
+            with gr.Column(scale=3):
+                test_image = gr.Dropdown(choices=test_gallery.image_ids, value=first_image,
+                                         label="Immagine di test", filterable=True)
+                original = gr.Image(value=original_value, label="Foto originale del test", interactive=False, height=260)
+                experiments = gr.CheckboxGroup(choices=test_gallery.experiments, value=test_gallery.experiments,
+                                               label="Esperimenti")
+                test_styles = gr.CheckboxGroup(choices=[(label, key) for key, label in STYLE_LABELS.items()],
+                                               value=list(STYLE_LABELS), label="Stili da confrontare")
+                test_conditions = gr.CheckboxGroup(choices=[(label, key) for key, label in MAP_LABELS.items()],
+                                                   value=list(MAP_LABELS), label="Mappe da confrontare")
+            with gr.Column(scale=6):
+                result_selection = gr.Dropdown(choices=initial_choices, value=initial_selected, multiselect=True,
+                                                label="Risultati da visualizzare", filterable=True)
+                with gr.Row():
+                    select_all = gr.Button("Mostra tutti i risultati filtrati")
+                    clear = gr.Button("Deseleziona tutti")
+                result_count = gr.Markdown(message)
+                saved_results = gr.Gallery(value=gallery_value, label="Confronto dei risultati salvati",
+                                           columns=[1, 2, 2, 3], object_fit="contain", height=650,
+                                           allow_preview=True, interactive=False)
+        filters = [test_image, experiments, test_styles, test_conditions]
+        for component in filters:
+            component.change(result_options, filters + [result_selection],
+                             [result_selection, original, saved_results, result_count], queue=False, api_name=False)
+        result_selection.change(test_gallery.view, [test_image, result_selection],
+                                [original, saved_results, result_count], queue=False, api_name=False)
+        select_all.click(all_results, filters, result_selection, queue=False, api_name=False)
+        clear.click(lambda: gr.update(value=[]), outputs=result_selection, queue=False, api_name=False)
     return app.queue(max_size=8, default_concurrency_limit=1)
 
 
@@ -76,4 +129,6 @@ if __name__ == "__main__":
     parser.add_argument("--share", action="store_true", help="Crea un link pubblico temporaneo Gradio.")
     args = parser.parse_args()
     runtime = DemoRuntime().load()
-    build_app(runtime).launch(share=args.share, inbrowser=True)
+    test_gallery = TestGallery(runtime.root)
+    build_app(runtime, test_gallery).launch(share=args.share, inbrowser=True,
+                                          allowed_paths=test_gallery.allowed_paths)
