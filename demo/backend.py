@@ -1,6 +1,9 @@
-"""Runtime persistente: un backbone condiviso, tre ControlNet e LoRA opzionali."""
+"""Modelli caricati per richiesta e rilasciati al termine della generazione."""
 
+import gc
 import json
+import logging
+import traceback
 import math
 from pathlib import Path
 from threading import Lock
@@ -45,82 +48,118 @@ class DemoRuntime:
         self.controlnets = load_config(self.root / "configs/models.toml")["controlnets"]
         self.lora_paths = find_loras(self.root, lora_paths)
         self.device = device
-        self.pipes = {}
-        self.preprocessors = {}
+        self._pipe = None
         self.lock = Lock()
         self.ready = False
 
     def load(self):
-        """Eseguire nel notebook PRIMA di avviare il sito; nessun download nei callback."""
+        """Verifica il runtime senza caricare modelli; compatibile con il notebook."""
         import torch
-        from diffusers import ControlNetModel, StableDiffusionControlNetImg2ImgPipeline
-        from src.generation.pipeline import attach_lora, load_pipeline
-        from src.preprocessing.depth import DepthEstimator
-        from src.preprocessing.semantic import SemanticSegmentor
 
-        with self.lock:
-            if self.ready:
-                return self
-            if self.device == "cuda" and not torch.cuda.is_available():
-                raise RuntimeError("GPU CUDA assente: attiva un runtime GPU nel notebook.")
-            dtype = "float32" if self.device == "cpu" else "float16"
-            model = self.config["model"]
-            revisions = set()
-            for rank, weight in self.lora_paths.items():
-                metadata_path = weight.parent / "run_config.json"
-                if not metadata_path.is_file() and weight.parent.name.startswith("checkpoint-"):
-                    metadata_path = weight.parent.parent / "run_config.json"
-                if metadata_path.is_file():
-                    training = json.loads(metadata_path.read_text())
-                    metadata = training.get("config", {})
-                    if metadata.get("rank", rank) != rank:
-                        raise ValueError(f"Rank incompatibile con il checkpoint {weight}")
-                    if metadata.get("model_id", model["id"]) != model["id"]:
-                        raise ValueError(f"Backbone incompatibile con la LoRA {weight}")
-                    if training.get("resolved_revision"):
-                        revisions.add(training["resolved_revision"])
-            if model.get("revision"):
-                revisions.add(model["revision"])
-            if len(revisions) > 1:
-                raise ValueError("Le LoRA disponibili richiedono revisioni diverse del backbone.")
-            print("Caricamento backbone Stable Diffusion…")
-            base = load_pipeline(model["id"], device="cpu", dtype="float32",
-                                 revision=next(iter(revisions), None))
-            base.to(dtype=getattr(torch, dtype))
-            self.pipes = {"none": base}
-            for rank, weight in self.lora_paths.items():
-                attach_lora(base, weight, adapter_name=f"rank_{rank}")
-            if self.lora_paths:
-                base.disable_lora()
-            for condition in CONDITIONS[1:]:
-                print(f"Caricamento ControlNet {condition}…")
-                controlnet = ControlNetModel.from_pretrained(
-                    self.controlnets[condition], torch_dtype=getattr(torch, dtype))
-                pipe = StableDiffusionControlNetImg2ImgPipeline.from_pipe(
-                    base, controlnet=controlnet)
-                pipe.enable_attention_slicing()
-                pipe.enable_vae_slicing()
-                pipe.enable_vae_tiling()
-                self.pipes[condition] = pipe
-            base.enable_attention_slicing()
-            base.enable_vae_slicing()
-            base.enable_vae_tiling()
-            # CPU per i preprocessori: evita di tenere anche DPT/UperNet in VRAM.
-            print("Caricamento preprocessori depth e segmentation su CPU…")
-            prep = self.config["preprocessing"]
-            self.preprocessors = {
-                "depth": DepthEstimator(prep["depth"]["model_id"], device="cpu"),
-                "segmentation": SemanticSegmentor(prep["segmentation"]["model_id"], device="cpu"),
-            }
-            self.ready = True
-            print(f"Modelli pronti. Rank LoRA disponibili: {list(self.lora_paths) or 'nessuno'}")
+        if self.device.split(":")[0] == "cuda" and not torch.cuda.is_available():
+            raise RuntimeError("GPU CUDA assente: attiva un runtime GPU nel notebook.")
+        self.ready = True
+        print(f"Demo pronta. Modelli caricati solo alla generazione. Rank LoRA: {list(self.lora_paths) or 'nessuno'}")
         return self
+
+    def _lora_revision(self, rank):
+        model = self.config["model"]
+        revision = model.get("revision")
+        if rank is None:
+            return revision
+        weight = self.lora_paths[rank]
+        metadata_path = weight.parent / "run_config.json"
+        if not metadata_path.is_file() and weight.parent.name.startswith("checkpoint-"):
+            metadata_path = weight.parent.parent / "run_config.json"
+        if metadata_path.is_file():
+            training = json.loads(metadata_path.read_text())
+            metadata = training.get("config", {})
+            if metadata.get("rank", rank) != rank:
+                raise ValueError(f"Rank incompatibile con il checkpoint {weight}")
+            if metadata.get("model_id", model["id"]) != model["id"]:
+                raise ValueError(f"Backbone incompatibile con la LoRA {weight}")
+            trained_revision = training.get("resolved_revision")
+            if revision and trained_revision and revision != trained_revision:
+                raise ValueError("La LoRA selezionata richiede una revisione diversa del backbone.")
+            revision = trained_revision or revision
+        return revision
+
+    def _condition_image(self, image, condition):
+        """Carica solo l'estrattore richiesto e lo elimina prima di caricare SD."""
+        if condition == "none":
+            return None
+        if condition == "canny":
+            from src.preprocessing.canny import extract_canny
+            return extract_canny(image, **self.config["preprocessing"]["canny"])
+        processor = None
+        try:
+            config = self.config["preprocessing"][condition]
+            if condition == "depth":
+                from src.preprocessing.depth import DepthEstimator
+                processor = DepthEstimator(config["model_id"], device="cpu")
+            else:
+                from src.preprocessing.semantic import SemanticSegmentor
+                processor = SemanticSegmentor(config["model_id"], device="cpu")
+            return processor.process(image)
+        finally:
+            processor = None
+            gc.collect()
+
+    def _load_request_pipeline(self, condition, rank):
+        import torch
+        from diffusers import (
+            ControlNetModel, StableDiffusionControlNetImg2ImgPipeline,
+            StableDiffusionImg2ImgPipeline,
+        )
+        from src.generation.pipeline import attach_lora
+
+        revision = self._lora_revision(rank)
+        dtype = torch.float32 if self.device == "cpu" else torch.float16
+        kwargs = {"torch_dtype": dtype}
+        if revision is not None:
+            kwargs["revision"] = revision
+        if condition == "none":
+            self._pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+                self.config["model"]["id"], **kwargs)
+        else:
+            controlnet = ControlNetModel.from_pretrained(
+                self.controlnets[condition], torch_dtype=dtype)
+            self._pipe = StableDiffusionControlNetImg2ImgPipeline.from_pretrained(
+                self.config["model"]["id"], controlnet=controlnet, **kwargs)
+        if rank is not None:
+            attach_lora(self._pipe, self.lora_paths[rank], adapter_name=f"rank_{rank}")
+        self._pipe.enable_attention_slicing()
+        self._pipe.enable_vae_slicing()
+        self._pipe.enable_vae_tiling()
+        if self.device.split(":")[0] == "cuda":
+            self._pipe.enable_model_cpu_offload(device=self.device)
+        else:
+            self._pipe.to(self.device)
+
+    def _release_models(self):
+        """Rimuove riferimenti e hook, poi libera la cache CUDA inutilizzata."""
+        import torch
+
+        pipe, self._pipe = self._pipe, None
+        if pipe is not None:
+            try:
+                pipe.remove_all_hooks()
+                pipe.to("cpu", silence_dtype_warnings=True)
+            except Exception:
+                # La rimozione dei riferimenti deve avvenire anche se il cleanup fallisce.
+                logging.warning("Rilascio demo: trasferimento CPU incompleto; eliminazione dei riferimenti.")
+            finally:
+                pipe = None
+        gc.collect()
+        if self.device.split(":")[0] == "cuda" and torch.cuda.is_available():
+            with torch.cuda.device(self.device):
+                torch.cuda.empty_cache()
 
     def run(self, image, condition, style, use_lora=False, rank=None, seed=42):
         from src.generation.generator import generate
 
         if not self.ready:
-            raise ValueError("Esegui prima la cella di caricamento dei modelli.")
+            raise ValueError("Inizializza la demo con runtime.load().")
         if not isinstance(image, Image.Image):
             raise ValueError("Carica un'immagine prima di generare.")
         if condition not in CONDITIONS or style not in STYLES:
@@ -136,43 +175,25 @@ class DemoRuntime:
             generation = self.config["generation"]
             # Come --no-preprocess del runner: solo RGB, senza crop o resize.
             prepared = image.convert("RGB")
-            condition_image = None
-            if condition == "canny":
-                from src.preprocessing.canny import extract_canny
-                condition_image = extract_canny(prepared, **self.config["preprocessing"]["canny"])
-            elif condition != "none":
-                condition_image = self.preprocessors[condition].process(prepared)
-            base = self.pipes["none"]
-            pipe = self.pipes[condition]
-            use_offload = self.device.split(":")[0] == "cuda"
+            selected_rank = int(rank) if use_lora else None
             try:
-                if use_lora:
-                    base.enable_lora()
-                    base.set_adapters([f"rank_{int(rank)}"], adapter_weights=[1.0])
-                elif self.lora_paths:
-                    base.disable_lora()
-                if use_offload:
-                    # Installa gli hook solo sulla pipeline attiva: UNet/VAE/text
-                    # encoder sono condivisi anche con le altre condizioni.
-                    pipe.enable_model_cpu_offload(device=self.device)
-                else:
-                    pipe.to(self.device)
+                condition_image = self._condition_image(prepared, condition)
+                self._load_request_pipeline(condition, selected_rank)
                 output = generate(
-                    pipe, prepared, self.styles[style]["prompt"],
+                    self._pipe, prepared, self.styles[style]["prompt"],
                     self.styles[style]["negative_prompt"], int(seed), **generation,
                     use_original_image=True,
                     condition_image=condition_image,
                     controlnet_conditioning_scale=(self.config["controlnet"]["conditioning_scale"]
                                                    if condition != "none" else None))
+            except Exception as exc:
+                # I frame di un errore possono trattenere tensori e modelli anche
+                # dopo aver eliminato self._pipe. Conserva il traceback, svuota i locali.
+                traceback.clear_frames(exc.__traceback__)
+                raise
             finally:
-                try:
-                    if self.lora_paths:
-                        base.disable_lora()
-                finally:
-                    if use_offload:
-                        pipe.remove_all_hooks()
-                    pipe.to("cpu", silence_dtype_warnings=True)
+                self._release_models()
             info = {"stile": style, "mappa": condition, "seed": int(seed),
-                    "lora_rank": int(rank) if use_lora else None,
+                    "lora_rank": selected_rank,
                     "secondi": round(perf_counter() - start, 2)}
             return output, condition_image, info

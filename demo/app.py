@@ -19,7 +19,7 @@ CSS = """
 
 def build_app(runtime):
     if not runtime.ready:
-        raise ValueError("Carica i modelli con runtime.load() prima di creare il sito.")
+        raise ValueError("Inizializza la demo con runtime.load() prima di creare il sito.")
     ranks = list(runtime.lora_paths)
 
     def lora_controls(style, enabled):
@@ -52,10 +52,11 @@ def build_app(runtime):
                     use_lora = gr.Checkbox(label="Usa LoRA Pixel art", value=False, interactive=bool(ranks))
                     rank = gr.Dropdown(choices=ranks, value=ranks[0] if ranks else None, label="Rank del checkpoint", visible=False)
                     if not ranks:
-                        gr.Markdown("Nessun peso LoRA trovato. Aggiungi i checkpoint e riesegui il caricamento nel notebook.")
+                        gr.Markdown("Nessun peso LoRA trovato. Aggiungi i checkpoint e reinizializza la demo nel notebook.")
                 with gr.Accordion("Riproducibilità", open=False):
                     seed = gr.Number(value=42, precision=0, minimum=0, maximum=2**32 - 1, label="Seed")
                 button = gr.Button("Genera immagine", variant="primary", elem_id="generate")
+                gr.Markdown("I modelli necessari vengono caricati a ogni generazione e rilasciati al termine. Il primo utilizzo può richiedere il download dei pesi.")
             with gr.Column(scale=5):
                 gr.Markdown("### 03 · Il risultato")
                 output = gr.Image(label="Immagine generata", type="pil", format="png", interactive=False, height=490)
