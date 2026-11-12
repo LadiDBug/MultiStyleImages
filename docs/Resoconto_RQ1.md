@@ -1,7 +1,8 @@
 # Resoconto RQ1 — Condizionamento strutturale
 
-**Aggiornato al 10 novembre 2026.** Questo documento riassume implementazione,
-prove note e lavoro restante. Non certifica nuovi risultati del benchmark.
+**Aggiornato al 12 novembre 2026.** Evaluation Kaggle completata e verificata
+su 104 foto comuni e tre seed: 3.744 output. Analisi quantitativa aggregata
+disponibile; restano ispezione visiva, analisi per scena e valutazione umana.
 
 ## Obiettivo
 
@@ -41,6 +42,9 @@ e checkpoint: i risultati non isolano causalmente il solo formato della mappa.
 
 Il TOML rappresenta una selezione di avvio, non l'inventario di tutti i run.
 Con tre stili e quattro condizioni si hanno 12 output per foto e seed.
+Nei run valutati, con preprocessing esplicito disabilitato, le dimensioni
+effettive seguono gli originali con piccoli arrotondamenti: non sono fisse a
+512x512. Per i valori effettivi consultare l'analisi delle 104 foto.
 
 ## Valutazione disponibile
 
@@ -62,9 +66,14 @@ foto, poi le foto, con intervalli bootstrap per foto. Il confronto appaiato
   **42, 123 e 456**. Non e stata richiesta o eseguita una nuova generazione.
 - La cronologia documenta una prima prova end-to-end su `olanda.png`,
   con 12 combinazioni e quattro metriche, utile a verificare il flusso tecnico.
-- La disponibilita e completezza locale degli artefatti di tutti i seed,
-  l'aggregazione finale e le conclusioni sul benchmark non sono certificate
-  da questo riordino della documentazione.
+- Audit e quattro metriche completati su Kaggle per le stesse 104 foto,
+  quattro condizioni, tre stili e tre seed: 3.744 output validi. Escluse
+  quattro foto per incompletezza, senza rigenerare gli output mancanti.
+- Analisi aggregata disponibile in `result_evaluation_rq1/analysis_common104_v1/`:
+  48 riepiloghi, 72 contrasti appaiati con IC bootstrap e analisi per seed.
+  Canny ha le medie maggiori nelle tre metriche di contenuto, `none` nel
+  CLIP-T di ogni stile. Questo descrive un compromesso, non qualita percettiva
+  complessiva superiore. Ispezione visiva e valutazione umana restano da fare.
 - Il pilot su una sola foto non basta a stabilire la superiorita di una
   condizione; CLIP-T non e una percentuale di riuscita dello stile.
 
@@ -82,13 +91,17 @@ CUDA o CPU. La selezione automatica CUDA/MPS/CPU del trainer RQ2 e separata.
 
 ## Lavoro restante
 
-Verificare gli inventari dei run esistenti, consolidare tabelle e confronti
-appaiati, analizzare successi/fallimenti e fedelta stilistica, quindi completare
-risultati, discussione e limiti. Non rilanciare automaticamente il benchmark
-per colmare un'assenza nella documentazione.
+Analizzare visivamente successi/fallimenti e fedelta stilistica, completare
+le annotazioni per scena e la valutazione umana, quindi consolidare discussione
+e limiti. Inventari, metriche e confronti quantitativi A01–A05 sono completati.
+Ogni passo successivo richiede l'OK dell'utente; nessun uso della GPU locale
+o rigenerazione automatica del benchmark.
 
 ## Documenti e collegamenti
 
+- [Griglie e modulo per l'ispezione visiva](RQ1/GRIGLIE_ISPEZIONE_RQ1_COMMON104.md) — 30 confronti, quattro domande per griglia, salvataggio nel browser, parti A/B, risposte di revisori distinti e import/export JSON.
+- [Analisi quantitativa delle 104 foto comuni](RQ1/ANALISI_RISULTATI_RQ1_COMMON104.md) — evaluation Kaggle completa su 3.744 output, aggregazione appaiata, IC, confronti tra metodi e stabilità dei seed.
+- [Piano di ablation study e registro degli esperimenti](RQ1/PIANO_ABLATION_STUDY_RQ1.md) — inventario e audit locale del 12 novembre, sequenza delle analisi e criteri per gli esperimenti successivi.
 - [Guida alle metriche e all'audit](RQ1/EVALUATION_RQ1.md)
 - [Stato dettagliato e contesto](RQ1/STATO_PROGETTO_RQ1.md)
 - [Riferimento storico RQ1](RQ1/RQ1_PROJECT_REFERENCE.md)

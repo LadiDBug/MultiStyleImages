@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RQ1 — Osservazioni sulle 30 griglie</title><style>__STYLE__</style></head><body>
+<header><div class="eyebrow">MULTISTYLEIMAGES / RQ1 / LETTURA QUALITATIVA</div>
+<h1>Una griglia, quattro domande.</h1>
+<p>Confronta originale, none, Canny, depth e segmentation. Scrivi una risposta per domanda, citando i metodi quando serve. Non devi assegnare voti o interpretare soglie numeriche.</p>
+<p class="muted">30 griglie foto/stile, seed 42. Sei foto casuali nei tre stili e dodici casi diagnostici; non sono 30 fotografie indipendenti. Nomi e metriche visibili: questa lettura non è uno studio cieco.</p>
+<details class="instructions"><summary>Come salvare e dividere il lavoro</summary><ol>
+<li>Inserisci il tuo nome o pseudonimo e premi <strong>Apri le mie risposte</strong>. Usa un nome distinto da quello degli altri revisori.</li>
+<li>Per due persone: una sceglie <strong>Parte A</strong>, l'altra <strong>Parte B</strong>. Ognuna contiene 15 griglie, cinque per stile. Potete anche rispondere entrambi alla stessa griglia: le risposte resteranno separate.</li>
+<li>Il testo viene salvato automaticamente <strong>in questo browser su questo computer</strong>. Non viene scritto dentro l'HTML o nel vecchio CSV, e non viene sincronizzato online.</li>
+<li>A fine sessione premi <strong>Esporta risposte JSON</strong> e conserva il file scaricato: è il backup da passare all'altra persona o da riaprire su un altro computer.</li>
+<li>Per riunire i lavori usa <strong>Importa risposte JSON</strong>, anche selezionando più file. I revisori diversi restano distinti. Se due versioni dello stesso revisore/griglia differiscono, le conserviamo entrambe e ti chiediamo quale usare.</li>
+</ol><p>Per condividere le immagini passa anche <strong>galleria_rq1_da_condividere.zip</strong>: va estratto prima di aprire <code>index.html</code>. Non basta inviare il solo HTML.</p></details>
+</header>
+<section aria-label="Revisore e salvataggio">
+<div class="row"><label for="reviewer">Il tuo nome / pseudonimo</label><input id="reviewer" maxlength="120" list="reviewers" placeholder="Es. Diana"><datalist id="reviewers"></datalist><button id="apply-reviewer" class="primary">Apri le mie risposte</button><span id="active-reviewer" class="muted"></span></div>
+<div class="row space"><div><strong id="progress-text">0/30 mie completate</strong><span id="team-progress" class="muted"></span></div><span id="save-state" class="save-state" role="status"></span></div>
+<div class="progress"><span id="progress-bar"></span></div>
+<div id="storage-warning" class="notice error" hidden>Questo browser non permette il salvataggio locale. Le risposte restano in memoria finché la pagina rimane aperta: esporta il JSON prima di chiuderla.</div>
+<div class="row"><button id="export-json">Esporta risposte JSON</button><button id="export-csv">Esporta riepilogo CSV</button><button id="import-button">Importa risposte JSON</button><input type="file" id="import-files" accept=".json,application/json" multiple hidden></div>
+<small>Il JSON conserva anche le versioni in conflitto. Il CSV è un riepilogo delle risposte attive, non sostituisce il backup JSON.</small>
+</section>
+<nav class="toolbar" aria-label="Filtri griglie"><div class="row">
+<label>Divisione lavoro<select id="part"><option value="all">Tutte e 30</option><option value="A">Parte A — 15 griglie</option><option value="B">Parte B — 15 griglie</option></select></label>
+<label>Stile<select id="style"><option value="all">Tutti</option><option value="gta5">GTA V</option><option value="pixel_art">Pixel Art</option><option value="watercolor">Watercolor</option></select></label>
+<label>Campione<select id="cohort"><option value="all">Tutti</option><option value="random">Casuale</option><option value="diagnostic">Diagnostico</option></select></label>
+<label>Le mie risposte<select id="status"><option value="all">Tutte</option><option value="todo">Da completare</option><option value="done">Completate</option></select></label>
+<span id="filter-count" class="muted"></span></div>
+<div class="row" style="margin-top:12px"><button id="previous">← Precedente</button><select id="case-select" aria-label="Griglia da aprire"></select><button id="next">Successiva →</button></div></nav>
+<article id="review-card"><div class="row space"><h2 id="case-title"></h2><span id="case-status" class="badge"></span></div>
+<p id="case-reason" class="muted"></p><p id="case-cohort" class="muted"></p>
+<a id="grid-link" target="_blank" rel="noopener"><img id="grid-image" class="grid-image" alt="Originale e quattro condizioni"></a>
+<p id="source-links"></p><p class="muted"><small>Apri la griglia o i sorgenti per ingrandire. I numeri sono del seed 42; i casi diagnostici sono scelti dalle medie dei tre seed. Non usare i punteggi come risposta alle domande.</small></p>
+<div class="questions">
+<div class="question"><label for="answer-content">1. Contenuto e struttura: cosa rimane e cosa cambia?</label><p>Quali metodi conservano meglio oggetti, sagome, posizioni e prospettiva rispetto all'originale? Indica cambiamenti concreti, elementi aggiunti o scomparsi.</p><textarea id="answer-content" data-question="content" maxlength="20000" placeholder="Es. [metodo] conserva la sagoma; [metodo] cambia…"></textarea></div>
+<div class="question"><label for="answer-style">2. Stile richiesto: in quali output lo riconosci?</label><p id="style-hint"></p><textarea id="answer-style" data-question="style" maxlength="20000" placeholder="Cita il metodo e i segni visivi dello stile. Va bene anche: non lo riconosco chiaramente."></textarea></div>
+<div class="question"><label for="answer-artifacts">3. Artefatti: quali difetti o dettagli inventati noti?</label><p>Confronta i quattro output: deformazioni, duplicazioni, texture incoerenti, oggetti strani o superfici rovinate. Se non noti difetti evidenti, scrivilo.</p><textarea id="answer-artifacts" data-question="artifacts" maxlength="20000" placeholder="Es. In depth compare… / Non noto artefatti evidenti alla risoluzione osservata."></textarea></div>
+<div class="question"><label for="answer-tradeoff">4. Compromesso: quale output sceglieresti e perché?</label><p>Considera insieme contenuto, stile e difetti. Puoi indicare un metodo, una parità oppure dire che nessun output ti convince. Spiega il motivo.</p><textarea id="answer-tradeoff" data-question="tradeoff" maxlength="20000" placeholder="Sceglierei… perché…; il limite rimane…"></textarea></div>
+</div>
+<div class="row space actions"><span id="record-save" class="muted"></span><div class="row"><button id="mark-draft">Mantieni in bozza</button><button id="mark-complete" class="primary">Segna questa griglia completata</button></div></div>
+<details><summary id="other-reviewers-title">Risposte di altri revisori</summary><div id="other-reviewers"></div></details>
+</article><section id="no-cases" hidden>Nessuna griglia con questi filtri. Modifica i filtri per continuare.</section>
+<section id="conflicts-section" hidden><h2>Versioni da confrontare</h2><p>Non abbiamo sovrascritto nessuna risposta. Scegli quale versione rendere attiva; entrambe resteranno nel JSON esportato.</p><div id="conflicts"></div></section>
+<p id="message" role="status" hidden></p>
+<script id="review-config" type="application/json">__CONFIG__</script><script>__CORE__</script><script>__APP__</script>
+</body></html>

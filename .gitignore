@@ -30,3 +30,7 @@ data/raw/*
 data/pixel_art/train/
 data/pixel_art/validation/
 lora/pixel_*
+
+
+result_evaluation_rq1/*
+result_rq1/*
