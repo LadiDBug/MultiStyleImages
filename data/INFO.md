@@ -18,6 +18,8 @@ sperimentali siano già state eseguite su quel file.
 Questo insieme è distinto da [`pixel_art/`](pixel_art/), che contiene le
 immagini stilizzate e le caption per il training del LoRA. La composizione
 di quest'ultimo è descritta in [`Dataset_LoRA.md`](pixel_art/Dataset_LoRA.md).
+È disponibile anche il dataset di training [GTA5](gta5/Dataset_LoRA.md), con
+400 screenshot e caption selezionati separatamente dalle fotografie di test.
 Le 108 immagini qui documentate sono input da trasformare, non target
 stilistici né un dataset già etichettato per allenare il futuro classificatore.
 

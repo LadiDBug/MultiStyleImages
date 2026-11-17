@@ -1,0 +1,59 @@
+{
+  "selection_revision": "gta5-context400-2026-11-17",
+  "manifest_sha256": "8177243c25a6aa4046ace1964af287c978cbc2982cc55fe4f282758b3e80650b",
+  "image_bytes": 69769389,
+  "splits": {
+    "train": {
+      "count": 360,
+      "signature": "cf7128ed5f80282ca09c568032890149a9905963cd6be292e580b290e99ea2f2",
+      "dimensions": {
+        "1280x720": 140,
+        "1920x1080": 210,
+        "640x360": 1,
+        "1440x810": 1,
+        "1920x1058": 1,
+        "1080x1080": 1,
+        "1920x860": 4,
+        "1536x864": 1,
+        "1920x768": 1
+      }
+    },
+    "validation": {
+      "count": 40,
+      "signature": "8440ae3ee9b9d27507ec16199073ea3f217eed6194a437514d3e2398e2298fd0",
+      "dimensions": {
+        "1280x720": 14,
+        "1920x1080": 25,
+        "1920x860": 1
+      }
+    }
+  },
+  "source_galleries": {
+    "gta-online": {
+      "train": 106,
+      "validation": 9
+    },
+    "ps3-360-screenshots": {
+      "train": 126,
+      "validation": 13
+    },
+    "ps4-xb1-pc-screenshots": {
+      "train": 128,
+      "validation": 18
+    }
+  },
+  "people100_composition": {
+    "small_group": 42,
+    "crowd": 10,
+    "single_main": 48
+  },
+  "people100_wide": 24,
+  "exact_byte_duplicates": 0,
+  "exact_rgb_duplicates": 0,
+  "exact_crop_duplicates": 0,
+  "near_duplicate_threshold": 4,
+  "near_duplicate_pairs": [],
+  "scene_groups": 345,
+  "benchmark_images": 108,
+  "benchmark_near_pairs": []
+}

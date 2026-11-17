@@ -32,3 +32,8 @@ data/pixel_art/validation/
 lora/pixel_*
 
 __init__.py
+
+# Dataset e pesi GTA5 locali; selezione e hash sono in data/gta5/selection.csv.
+data/gta5/train/
+data/gta5/validation/
+lora/gta5_*

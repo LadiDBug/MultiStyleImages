@@ -1,0 +1,17 @@
+# Dataset GTA5 congelato: 360 train / 40 validation.
+# Nessun training e stato eseguito durante la costruzione del dataset.
+[experiment]
+name = "lora_gta5_rank_32"
+styles = ["gta5"]
+conditions = ["none", "canny", "depth", "segmentation"]
+seeds = [42]
+
+[data]
+input_dir = "data/gta5"
+output_dir = "lora/gta5_rank_32"
+
+[parameters]
+rank = 32
+alpha = 32
+max_train_steps = 1000
+interpolation = "lanczos"

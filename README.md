@@ -37,7 +37,8 @@ MultiStyleImages/
 │   └── utils/                 # Lettura e adattamento delle configurazioni
 ├── data/
 │   ├── test_images/           # Fotografie di inferenza nel main.toml attuale
-│   └── pixel_art/             # train/, validation/ e Dataset_LoRA.md
+│   ├── pixel_art/             # train/, validation/ e Dataset_LoRA.md
+│   └── gta5/                  # 400 screenshot con caption, manifest e audit
 ├── lora/                      # Pesi LoRA, checkpoint e log del training
 ├── outputs/                   # Run di generazione, creati quando eseguiti
 ├── tests/                     # Test offline
@@ -141,6 +142,18 @@ Il trainer seleziona automaticamente CUDA, MPS o CPU; l'implementazione attuale
 usa FP32 su MPS/CPU. Il trainer diretto `python3 -m src.training_lora.train`
 resta disponibile e la sua opzione `--config` usa lo schema TOML specifico
 descritto nel modulo, diverso dai config LoRA adattati dal main.
+
+Il dataset GTA5 contiene altre 400 immagini con gli stessi conteggi e quote
+di selezione del riferimento Pixel Art. Fonti, differenze e controlli sono in
+[`data/gta5/Dataset_LoRA.md`](data/gta5/Dataset_LoRA.md). I config dedicati
+`lora_gta5_rank4.toml`, `lora_gta5_rank8.toml`, `lora_gta5_rank16.toml` e
+`lora_gta5_rank32.toml` usano directory di pesi separate. Per verificarlo:
+
+```bash
+python3 main.py --lora lora_gta5_rank4.toml train --check-data
+```
+
+Il dataset è stato preparato e controllato; i LoRA GTA5 non sono stati allenati.
 
 ## Inferenza con il LoRA selezionato
 
