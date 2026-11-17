@@ -19,3 +19,7 @@ negative_prompt = "blurry, watermark, signature"
 prompt = "Detailed representational watercolor painting, transparent layered washes on textured paper, clearly defined main shapes, delicate dry-brush details, visible pigment granulation, soft edges in distant areas, crisp focal details, natural color relationships, coherent perspective, hand-painted appearance. Apply these to existing surfaces." 
 negative_prompt = "photograph, photorealistic, 3d render, glossy surfaces, oil painting, thick impasto, vector illustration, heavy black outlines, neon colors, text, watermark, signature"
 # negative_prompt = ""
+
+[styles.cyberpunk]
+prompt = "Cyberpunk rendering: futuristic materials, metallic surfaces, cyan and magenta neon accents, contrasting warm amber light, reflective highlights and atmospheric shadows. Apply these to existing surfaces."
+negative_prompt = "blurry, distorted, watermark, signature"

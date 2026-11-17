@@ -1,0 +1,16 @@
+# Dataset Cyberpunk: 360 train / 40 validation. Training non eseguito.
+[experiment]
+name = "lora_cyberpunk_rank_16"
+styles = ["cyberpunk"]
+conditions = ["none", "canny", "depth", "segmentation"]
+seeds = [42]
+
+[data]
+input_dir = "data/cyberpunk"
+output_dir = "lora/cyberpunk_rank_16"
+
+[parameters]
+rank = 16
+alpha = 16
+max_train_steps = 1000
+interpolation = "lanczos"

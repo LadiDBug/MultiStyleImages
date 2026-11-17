@@ -37,3 +37,8 @@ __init__.py
 data/gta5/train/
 data/gta5/validation/
 lora/gta5_*
+
+# Dataset Cyberpunk locale; fonti e hash in data/cyberpunk/selection.csv.
+data/cyberpunk/train/
+data/cyberpunk/validation/
+lora/cyberpunk_*

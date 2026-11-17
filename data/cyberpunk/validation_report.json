@@ -1,0 +1,40 @@
+{
+  "selection_revision": "cyberpunk-context400-2026-11-17",
+  "count": 400,
+  "splits": {
+    "train": 360,
+    "validation": 40
+  },
+  "subsets": {
+    "base300": 300,
+    "people100": 100
+  },
+  "people_composition": {
+    "single_main": 48,
+    "small_group": 42,
+    "crowd": 10
+  },
+  "people_wide": 24,
+  "unique_source_content_ids": 400,
+  "dimensions": {
+    "(512, 512)": 400
+  },
+  "total_bytes": 13763799,
+  "duplicate_bytes": 0,
+  "duplicate_rgb": 0,
+  "dhash_threshold": 4,
+  "near_duplicates": [],
+  "local_inference_images_checked": 108,
+  "inference_overlap": [],
+  "signatures": {
+    "train": "6c2f0c762a29900a6ac88f5495b50cd0a80205acb96a23e222fc7c826f8d7b91",
+    "validation": "b6141b0a74ac38aecc8e9b9e83789f30c7a851f7256f2ffcadf0a2a1d70130cc"
+  },
+  "selection_sha256": "23e8c9b084d1aab8b140e088d80bef2db6c40f8d35a9656002cb61a240cedb69",
+  "limitations": [
+    "Visual annotations are qualitative.",
+    "dHash and content IDs do not exclude all semantic duplicates.",
+    "Source is one synthetic dataset with multiple Cyberpunk variants.",
+    "JPEG files are Hugging Face viewer assets; original Parquet byte identity is not claimed."
+  ]
+}

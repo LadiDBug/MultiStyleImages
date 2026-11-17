@@ -38,7 +38,8 @@ MultiStyleImages/
 ├── data/
 │   ├── test_images/           # Fotografie di inferenza nel main.toml attuale
 │   ├── pixel_art/             # train/, validation/ e Dataset_LoRA.md
-│   └── gta5/                  # 400 screenshot con caption, manifest e audit
+│   ├── gta5/                  # 400 screenshot con caption, manifest e audit
+│   └── cyberpunk/             # 400 immagini sintetiche con caption, manifest e audit
 ├── lora/                      # Pesi LoRA, checkpoint e log del training
 ├── outputs/                   # Run di generazione, creati quando eseguiti
 ├── tests/                     # Test offline
@@ -154,6 +155,20 @@ python3 main.py --lora lora_gta5_rank4.toml train --check-data
 ```
 
 Il dataset è stato preparato e controllato; i LoRA GTA5 non sono stati allenati.
+
+Il dataset **Cyberpunk** contiene 400 immagini sintetiche con caption, con
+split 360/40 e le stesse quote 300+100 e composizione delle persone del Pixel
+Art. [Documentazione, fonte e licenza](data/cyberpunk/Dataset_LoRA.md),
+[selezione congelata](data/cyberpunk/selection.csv) e
+[galleria locale](data/cyberpunk/review.html) sono in `data/cyberpunk/`.
+La fonte MegaStyle consente ricerca/didattica ed esclude usi commerciali e di
+produzione; la licenza originale è inclusa. I LoRA Cyberpunk non sono stati
+allenati. Sono pronti i config per rank 4, 8, 16 e 32, con output separati.
+
+```bash
+python3 scripts/build_cyberpunk_dataset.py
+python3 main.py --lora lora_cyberpunk_rank4.toml train --check-data
+```
 
 ## Inferenza con il LoRA selezionato
 
