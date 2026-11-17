@@ -1,0 +1,16 @@
+# Dataset watercolor congelato: 360 train / 40 validation.
+[experiment]
+name = "lora_watercolor_rank_4"
+styles = ["watercolor"]
+conditions = ["none", "canny", "depth", "segmentation"]
+seeds = [42]
+
+[data]
+input_dir = "data/watercolor"
+output_dir = "lora/watercolor_rank_4"
+
+[parameters]
+rank = 4
+alpha = 4
+max_train_steps = 1000
+interpolation = "lanczos"

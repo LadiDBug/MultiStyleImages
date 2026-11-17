@@ -1,0 +1,24 @@
+{
+  "dark": {
+    "repository": "DarkMoonDragon/watercolor-flux-samples",
+    "revision": "59ba3fb6b2cc426b9b06feff0d382f5941d135af",
+    "license": "MIT"
+  },
+  "neon": {
+    "repository": "neonforestmist/GPT_Watercolor_Anime_Style_Images",
+    "revision": "4c7392a697adc3aac54faedcc99aab08073c8639",
+    "license": "Apache-2.0"
+  },
+  "w2k": {
+    "repository": "jtorregrosa/watercolour2k",
+    "revision": "5ac3aaf9545ff81bdc205b157362324619952999",
+    "license": "MIT"
+  },
+  "marie": {
+    "repository": "reversely/marie-claire-lefebure-watercolours",
+    "revision": "ba30230f0a07f29dcdbbc6f0f21e9fbc6c1fc387",
+    "license": "CC-BY-4.0",
+    "attribution": "By Marie-Claire - Own work, CC BY 4.0",
+    "attribution_url": "https://commons.wikimedia.org/wiki/Category:Marie-Claire_Lef%C3%A9bure"
+  }
+}

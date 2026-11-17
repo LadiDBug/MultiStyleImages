@@ -29,7 +29,10 @@ data/raw/*
 
 data/pixel_art/train/
 data/pixel_art/validation/
+data/watercolor/train/
+data/watercolor/validation/
 lora/pixel_*
+lora/watercolor_*
 
 
 result_evaluation_rq1/*

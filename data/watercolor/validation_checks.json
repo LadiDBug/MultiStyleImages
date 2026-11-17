@@ -1,0 +1,14 @@
+{
+  "max_CLIP_caption_tokens": 22,
+  "CLIP_limit": 77,
+  "captions_over_limit": 0,
+  "gallery_images": 400,
+  "gallery_paths_valid": true,
+  "rank_configs_validated": [
+    4,
+    8,
+    16,
+    32
+  ],
+  "trainer_check_data": "passed; 360 train and 40 validation; signatures match audit.json"
+}
