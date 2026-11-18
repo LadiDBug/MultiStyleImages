@@ -23,3 +23,8 @@ negative_prompt = "photograph, photorealistic, 3d render, glossy surfaces, oil p
 [styles.cyberpunk]
 prompt = "Cyberpunk rendering: futuristic materials, metallic surfaces, cyan and magenta neon accents, contrasting warm amber light, reflective highlights and atmospheric shadows. Apply these to existing surfaces."
 negative_prompt = "blurry, distorted, watermark, signature"
+
+
+[styles.halftone_comic]
+prompt = "Halftone comic illustration, bold black ink contours, flat limited colors, visible printed dot screens in shadows and midtones, hard edged shading and paper texture. Apply these to existing surfaces."
+negative_prompt = "photograph, smooth gradients, blurry, text, speech bubbles, watermark, signature"

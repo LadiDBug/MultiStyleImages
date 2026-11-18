@@ -42,3 +42,8 @@ lora/gta5_*
 data/cyberpunk/train/
 data/cyberpunk/validation/
 lora/cyberpunk_*
+
+# Dataset e pesi del fumetto con retino locali.
+data/halftone_comic/train/
+data/halftone_comic/validation/
+lora/halftone_comic_*

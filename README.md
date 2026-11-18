@@ -241,3 +241,17 @@ Per confrontare i rank, mantenere fissi dataset, split e parametri di training.
 
 Le parti storiche conservano decisioni e comandi delle versioni precedenti;
 per la CLI corrente fare riferimento a questo README e a `main.py --help`.
+
+
+Il dataset **fumetto con retino** è in `data/halftone_comic`: 400 immagini con
+caption, split 360/40 e quote 300+100 equivalenti al dataset GTA5.
+[Fonti, criteri, licenza e inventario](data/halftone_comic/Dataset_LoRA.md).
+La fonte MegaStyle consente ricerca/didattica, escludendo uso commerciale e
+produzione. Nessun LoRA è stato allenato durante la preparazione. Sono pronti
+i config `lora_halftone_rank4.toml`, `lora_halftone_rank8.toml`,
+`lora_halftone_rank16.toml` e `lora_halftone_rank32.toml`.
+
+```bash
+python3 scripts/build_halftone_dataset.py
+python3 main.py --lora lora_halftone_rank4.toml train --check-data
+```

@@ -1,0 +1,34 @@
+{
+  "revision": "halftone-context400-2026-11-18",
+  "count": 400,
+  "splits": {
+    "train": 360,
+    "validation": 40
+  },
+  "subsets": {
+    "base300": 300,
+    "people100": 100
+  },
+  "people_composition": {
+    "crowd": 10,
+    "small_group": 42,
+    "single_main": 48
+  },
+  "people_wide": 24,
+  "unique_content_ids": 400,
+  "dimensions": {
+    "512x512": 400
+  },
+  "bytes": 20462063,
+  "duplicates_rgb": 0,
+  "duplicates_bytes": 0,
+  "dhash_threshold": 4,
+  "near_duplicates": [],
+  "inference_images_checked": 108,
+  "inference_overlap": [],
+  "signatures": {
+    "train": "37284cbf132a02f7a50f57ecb56abf840c7750792e5857e03004ce7034fc08ed",
+    "validation": "0e18b8acef7c99b4f6a733c15fd94a8f6ca67af08fc82a66e01e1436349cbebd"
+  },
+  "selection_sha256": "deabf55e2316287d080671f70767ae1abdeaa32ba6de8b967ccb0ac8bd75c4a7"
+}
