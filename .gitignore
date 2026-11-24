@@ -37,3 +37,7 @@ lora/watercolor_*
 
 result_evaluation_rq1/*
 result_rq1/*
+
+
+output/*
+tmp/*
